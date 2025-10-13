@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "nombre": "Vinilo — Indie Essentials",
+    "precio": 15990,
+    "imagen": "/assets/placeholder-1.jpg"
+  },
+  {
+    "id": 2,
+    "nombre": "Vinilo — Jazz Classics",
+    "precio": 17990,
+    "imagen": "/assets/placeholder-2.jpg"
+  },
+  {
+    "id": 3,
+    "nombre": "Vinilo — Rock Legends",
+    "precio": 18990,
+    "imagen": "/assets/placeholder-3.jpg"
+  }
+]
