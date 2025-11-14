@@ -27,6 +27,9 @@ export default function AdminPage() {
   const [editRow, setEditRow] = React.useState(null);
   const [busy, setBusy] = React.useState(false);
   const [formErr, setFormErr] = React.useState("");
+  
+  // Estado para preview de imágenes
+  const [imagePreviews, setImagePreviews] = React.useState([]);
 
   React.useEffect(() => {
     refresh();
@@ -68,23 +71,48 @@ export default function AdminPage() {
     return <span className="badge text-bg-success">Activo</span>;
   }
 
-  // CRUD handlers
+  function handleImageChange(e) {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) {
+      setImagePreviews([]);
+      return;
+    }
+    
+    const previews = files.map(file => ({
+      file,
+      preview: URL.createObjectURL(file),
+      name: file.name
+    }));
+    setImagePreviews(previews);
+  }
+
+  function removeImagePreview(index) {
+    setImagePreviews(prev => {
+      const updated = [...prev];
+      URL.revokeObjectURL(updated[index].preview); // Liberar memoria
+      updated.splice(index, 1);
+      return updated;
+    });
+  }
+
   async function onCreate(e) {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const payload = {
-      name: fd.get("name") || "",
-      description: fd.get("description") || "",
-      price: Number(fd.get("price") || 0),
-      stock: Number(fd.get("stock") || 0),
-      category: fd.get("category") || "",
-      // image: []  // Integración de subida la hacemos cuando me confirmes el flujo de Xano
-    };
+    const formData = new FormData(e.currentTarget);
+    
+    const imageInput = e.currentTarget.querySelector('input[name="images"]');
+    if (imageInput?.files) {
+      // Xano espera archivos con el nombre del campo "image"
+      Array.from(imageInput.files).forEach((file) => {
+        formData.append('image', file);
+      });
+    }
+    
     try {
       setBusy(true); setFormErr("");
-      const created = await vinylService.create(payload);
+      const created = await vinylService.create(formData);
       setRows(prev => [created, ...prev]);
       setShowCreate(false);
+      setImagePreviews([]);
       e.currentTarget.reset();
     } catch (err) {
       setFormErr(err.message || "No se pudo crear el producto");
@@ -96,19 +124,22 @@ export default function AdminPage() {
   async function onUpdate(e) {
     e.preventDefault();
     if (!editRow) return;
-    const fd = new FormData(e.currentTarget);
-    const payload = {
-      name: fd.get("name") || "",
-      description: fd.get("description") || "",
-      price: Number(fd.get("price") || 0),
-      stock: Number(fd.get("stock") || 0),
-      category: fd.get("category") || "",
-    };
+    const formData = new FormData(e.currentTarget);
+    
+    // Agregar imágenes si se seleccionaron nuevas
+    const imageInput = e.currentTarget.querySelector('input[name="images"]');
+    if (imageInput?.files && imageInput.files.length > 0) {
+      Array.from(imageInput.files).forEach((file) => {
+        formData.append('image', file);
+      });
+    }
+    
     try {
       setBusy(true); setFormErr("");
-      const updated = await vinylService.update(editRow.id, payload);
+      const updated = await vinylService.update(editRow.id, formData);
       setRows(prev => prev.map(x => x.id === updated.id ? updated : x));
       setEditRow(null);
+      setImagePreviews([]);
     } catch (err) {
       setFormErr(err.message || "No se pudo actualizar");
     } finally {
@@ -255,47 +286,84 @@ export default function AdminPage() {
               <form className="modal-content bg-dark text-white" onSubmit={onCreate}>
                 <div className="modal-header">
                   <h5 className="modal-title">Nuevo vinilo</h5>
-                  <button type="button" className="btn-close btn-close-white" onClick={()=>setShowCreate(false)} />
+                  <button type="button" className="btn-close btn-close-white" onClick={()=>{setShowCreate(false); setImagePreviews([]);}} />
                 </div>
                 <div className="modal-body">
                   {formErr && <div className="alert alert-danger">{formErr}</div>}
                   <div className="row g-3">
                     <div className="col-12 col-md-6">
-                      <label className="form-label">name</label>
+                      <label className="form-label">Nombre</label>
                       <input name="name" className="form-control bg-dark text-white border-secondary" required />
                     </div>
                     <div className="col-12 col-md-6">
-                      <label className="form-label">category</label>
+                      <label className="form-label">Categoria</label>
                       <input name="category" className="form-control bg-dark text-white border-secondary" />
                     </div>
                     <div className="col-12">
-                      <label className="form-label">description</label>
+                      <label className="form-label">Descripción</label>
                       <textarea name="description" rows="3" className="form-control bg-dark text-white border-secondary" />
                     </div>
                     <div className="col-6">
-                      <label className="form-label">price</label>
+                      <label className="form-label">Precio</label>
                       <input name="price" type="number" min="0" className="form-control bg-dark text-white border-secondary" required />
                     </div>
                     <div className="col-6">
-                      <label className="form-label">stock</label>
+                      <label className="form-label">Stock</label>
                       <input name="stock" type="number" min="0" className="form-control bg-dark text-white border-secondary" required />
                     </div>
-                    {/* Imagen (pendiente de flujo de upload Xano) */}
                     <div className="col-12">
-                      <div className="alert alert-secondary small mb-0">
-                        La carga de <strong>image</strong> se integra cuando confirmes el endpoint de upload en Xano.
-                      </div>
+                      <label className="form-label">Imágenes</label>
+                      <input 
+                        type="file" 
+                        name="images" 
+                        multiple 
+                        accept="image/*"
+                        className="form-control bg-dark text-white border-secondary"
+                        onChange={handleImageChange}
+                      />
+                      <small className="text-white-50 d-block mt-1">
+                        Puedes seleccionar múltiples imágenes (JPG, PNG, WebP)
+                      </small>
                     </div>
+                    {imagePreviews.length > 0 && (
+                      <div className="col-12">
+                        <label className="form-label">Vista previa ({imagePreviews.length} imagen{imagePreviews.length > 1 ? 'es' : ''})</label>
+                        <div className="d-flex flex-wrap gap-2">
+                          {imagePreviews.map((preview, idx) => (
+                            <div key={idx} className="position-relative" style={{width: 100, height: 100}}>
+                              <img 
+                                src={preview.preview} 
+                                alt={`Preview ${idx + 1}`}
+                                className="rounded w-100 h-100"
+                                style={{objectFit: 'cover'}}
+                              />
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-danger position-absolute top-0 end-0 m-1"
+                                style={{padding: '0.15rem 0.4rem', fontSize: '0.7rem'}}
+                                onClick={() => removeImagePreview(idx)}
+                                title="Eliminar"
+                              >
+                                ×
+                              </button>
+                              <small className="text-white-50 d-block text-truncate" style={{fontSize: '0.65rem'}}>
+                                {preview.name}
+                              </small>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="button" className="btn btn-outline-secondary" onClick={()=>setShowCreate(false)} disabled={busy}>Cancelar</button>
+                  <button type="button" className="btn btn-outline-secondary" onClick={()=>{setShowCreate(false); setImagePreviews([]);}} disabled={busy}>Cancelar</button>
                   <button type="submit" className="btn btn-light" disabled={busy}>{busy? "Guardando…":"Crear"}</button>
                 </div>
               </form>
             </div>
           </div>
-          <div className="modal-backdrop fade show" onClick={()=>setShowCreate(false)} />
+          <div className="modal-backdrop fade show" onClick={()=>{setShowCreate(false); setImagePreviews([]);}} />
         </>
       )}
 
@@ -332,17 +400,83 @@ export default function AdminPage() {
                       <label className="form-label">stock</label>
                       <input name="stock" type="number" min="0" defaultValue={editRow.stock} className="form-control bg-dark text-white border-secondary" required />
                     </div>
-                    {/* Imagen (pendiente igual que en crear) */}
+                    
+                    {/* Imágenes actuales */}
+                    {editRow.image && editRow.image.length > 0 && (
+                      <div className="col-12">
+                        <label className="form-label">Imágenes actuales</label>
+                        <div className="d-flex flex-wrap gap-2">
+                          {editRow.image.map((img, idx) => (
+                            <div key={idx} className="position-relative" style={{width: 100, height: 100}}>
+                              <img 
+                                src={img.url} 
+                                alt={`Imagen ${idx + 1}`}
+                                className="rounded w-100 h-100"
+                                style={{objectFit: 'cover'}}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        <small className="text-white-50 d-block mt-1">
+                          Si subes nuevas imágenes, se agregarán a las existentes
+                        </small>
+                      </div>
+                    )}
+                    
+                    {/* Nuevas imágenes */}
+                    <div className="col-12">
+                      <label className="form-label">Agregar nuevas imágenes</label>
+                      <input 
+                        type="file" 
+                        name="images" 
+                        multiple 
+                        accept="image/*"
+                        className="form-control bg-dark text-white border-secondary"
+                        onChange={handleImageChange}
+                      />
+                      <small className="text-white-50 d-block mt-1">
+                        Opcional: Selecciona nuevas imágenes para agregar
+                      </small>
+                    </div>
+                    {imagePreviews.length > 0 && (
+                      <div className="col-12">
+                        <label className="form-label">Vista previa de nuevas imágenes ({imagePreviews.length})</label>
+                        <div className="d-flex flex-wrap gap-2">
+                          {imagePreviews.map((preview, idx) => (
+                            <div key={idx} className="position-relative" style={{width: 100, height: 100}}>
+                              <img 
+                                src={preview.preview} 
+                                alt={`Preview ${idx + 1}`}
+                                className="rounded w-100 h-100"
+                                style={{objectFit: 'cover'}}
+                              />
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-danger position-absolute top-0 end-0 m-1"
+                                style={{padding: '0.15rem 0.4rem', fontSize: '0.7rem'}}
+                                onClick={() => removeImagePreview(idx)}
+                                title="Eliminar"
+                              >
+                                ×
+                              </button>
+                              <small className="text-white-50 d-block text-truncate" style={{fontSize: '0.65rem'}}>
+                                {preview.name}
+                              </small>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="button" className="btn btn-outline-secondary" onClick={()=>setEditRow(null)} disabled={busy}>Cancelar</button>
+                  <button type="button" className="btn btn-outline-secondary" onClick={()=>{setEditRow(null); setImagePreviews([]);}} disabled={busy}>Cancelar</button>
                   <button type="submit" className="btn btn-light" disabled={busy}>{busy? "Guardando…":"Guardar"}</button>
                 </div>
               </form>
             </div>
           </div>
-          <div className="modal-backdrop fade show" onClick={()=>setEditRow(null)} />
+          <div className="modal-backdrop fade show" onClick={()=>{setEditRow(null); setImagePreviews([]);}} />
         </>
       )}
     </div>

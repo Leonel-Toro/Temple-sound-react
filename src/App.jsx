@@ -26,6 +26,7 @@ export default function App() {
   const segs = segments(path);
   const [showLogin, setShowLogin] = React.useState(false);
   const [showRegister, setShowRegister] = React.useState(false);
+  const [user, setUser] = React.useState(null);
 
   React.useEffect(() => {
     const onPop = () => setPath(getPathFromLocation());
@@ -46,6 +47,25 @@ export default function App() {
   const abrirRegistro = () => {
     setShowLogin(false);
     setShowRegister(true);
+  };
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const email = formData.get('email');
+    const password = formData.get('password');
+    
+    // Aquí puedes agregar validación real con tu backend
+    // Por ahora, simulamos un login exitoso
+    setUser({
+      email: email,
+      name: email.split('@')[0] // Usamos la parte antes del @ como nombre
+    });
+    setShowLogin(false);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
   };
 
   const Hero = () => (
@@ -134,7 +154,7 @@ export default function App() {
   
   return (
     <div className="d-flex flex-column min-vh-100 bg-light">
-      {!isAdmin && <Header onOpenLogin={() => setShowLogin(true)} />}
+      {!isAdmin && <Header onOpenLogin={() => setShowLogin(true)} user={user} onLogout={handleLogout} />}
 
       <main className={isAdmin ? "" : "flex-grow-1"}>
         <Page {...pageProps} />
@@ -151,9 +171,7 @@ export default function App() {
         dark
       >
         <form
-          onSubmit={(e) => {
-            e.preventDefault();
-          }}
+          onSubmit={handleLogin}
           noValidate
         >
           <div className="mb-3">
@@ -162,6 +180,7 @@ export default function App() {
             </label>
             <input
               id="loginUser"
+              name="email"
               type="email"
               className="form-control bg-dark text-white border-secondary"
               placeholder="correo@dominio.com"
@@ -176,6 +195,7 @@ export default function App() {
             </label>
             <PasswordInput
               id="loginPass"
+              name="password"
               className="form-control bg-dark text-white"
               minLength={4}
               required

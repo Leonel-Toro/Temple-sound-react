@@ -24,6 +24,7 @@ export default function ViniloPage({ id: idProp }) {
   const [v, setV] = React.useState(null);
   const [qty, setQty] = React.useState(1);
   const [activeTab, setActiveTab] = React.useState("descripcion"); // tabs controladas
+  const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
 
@@ -42,13 +43,13 @@ export default function ViniloPage({ id: idProp }) {
           precio: data.price,
           stock: data.stock,
           categoria: data.category || "",
-          imagen: data.image?.[0]?.url || "",
+          imagenes: data.image || [], // Guardar array completo de imágenes
           // Campos opcionales: si luego agregas year, label, etc, mapea aquí:
           year: data.year ?? "",
           sello: data.label ?? "",
           codigo: data.code ?? "",
           formato: data.format ?? "LP",
-          rpm: data.rpm ?? '12” · 33⅓ RPM',
+          rpm: data.rpm ?? '12" · 33⅓ RPM',
           genero: data.category || "—",
         });
       } catch (e) {
@@ -59,6 +60,28 @@ export default function ViniloPage({ id: idProp }) {
     })();
     return () => { mounted = false; };
   }, [id]);
+
+  // Navegación con teclado en el carrusel
+  React.useEffect(() => {
+    if (!v || !v.imagenes || v.imagenes.length <= 1) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setCurrentImageIndex(prev => 
+          prev === 0 ? v.imagenes.length - 1 : prev - 1
+        );
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setCurrentImageIndex(prev => 
+          prev === v.imagenes.length - 1 ? 0 : prev + 1
+        );
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [v]);
 
   const onAdd = async () => {
     if (!v) return;
@@ -93,19 +116,86 @@ export default function ViniloPage({ id: idProp }) {
         <div className="row g-4">
           {/* Portada */}
           <div className="col-12 col-lg-6">
-            <div className="card bg-dark border-0">
-              <div className="ratio ratio-1x1">
-                {v.imagen ? (
-                  <img
-                    src={v.imagen}
-                    alt={`${v.nombre}${v.year ? ` (${v.year})` : ""}`}
-                    className="w-100 h-100 object-fit-cover"
-                  />
-                ) : (
-                  <div className="w-100 h-100 bg-secondary" />
+            {v.imagenes && v.imagenes.length > 0 ? (
+              <>
+                {/* Imagen principal */}
+                <div className="card bg-dark border-0 mb-2">
+                  <div className="ratio ratio-1x1">
+                    <img
+                      src={v.imagenes[currentImageIndex]?.url}
+                      alt={`${v.nombre} - Imagen ${currentImageIndex + 1}`}
+                      className="w-100 h-100 object-fit-cover"
+                    />
+                  </div>
+                  
+                  {/* Controles del carrusel */}
+                  {v.imagenes.length > 1 && (
+                    <>
+                      <button
+                        className="carousel-control-prev position-absolute top-50 start-0 translate-middle-y"
+                        type="button"
+                        onClick={() => setCurrentImageIndex(prev => 
+                          prev === 0 ? v.imagenes.length - 1 : prev - 1
+                        )}
+                        style={{ width: '10%' }}
+                      >
+                        <span className="carousel-control-prev-icon" aria-hidden="true"></span>
+                        <span className="visually-hidden">Anterior</span>
+                      </button>
+                      <button
+                        className="carousel-control-next position-absolute top-50 end-0 translate-middle-y"
+                        type="button"
+                        onClick={() => setCurrentImageIndex(prev => 
+                          prev === v.imagenes.length - 1 ? 0 : prev + 1
+                        )}
+                        style={{ width: '10%' }}
+                      >
+                        <span className="carousel-control-next-icon" aria-hidden="true"></span>
+                        <span className="visually-hidden">Siguiente</span>
+                      </button>
+                      
+                      {/* Indicador de posición */}
+                      <div className="position-absolute bottom-0 end-0 m-3">
+                        <span className="badge bg-dark bg-opacity-75 text-white">
+                          {currentImageIndex + 1} / {v.imagenes.length}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+                
+                {/* Miniaturas */}
+                {v.imagenes.length > 1 && (
+                  <div className="d-flex gap-2 overflow-auto pb-2">
+                    {v.imagenes.map((img, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        className={`btn p-0 border-0 flex-shrink-0 ${
+                          idx === currentImageIndex ? 'opacity-100' : 'opacity-50'
+                        }`}
+                        onClick={() => setCurrentImageIndex(idx)}
+                        style={{ width: '80px', height: '80px' }}
+                      >
+                        <img
+                          src={img.url}
+                          alt={`Miniatura ${idx + 1}`}
+                          className="w-100 h-100 object-fit-cover rounded"
+                        />
+                      </button>
+                    ))}
+                  </div>
                 )}
+              </>
+            ) : (
+              <div className="card bg-dark border-0">
+                <div className="ratio ratio-1x1">
+                  <div className="w-100 h-100 bg-secondary d-flex align-items-center justify-content-center">
+                    <i className="bi bi-image text-white-50" style={{ fontSize: '4rem' }}></i>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Info */}

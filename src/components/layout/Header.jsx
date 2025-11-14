@@ -1,10 +1,23 @@
 import { useCart } from "../../context/CartContext";
 import React from "react";
 
-export default function Header({ onOpenLogin }) {
+export default function Header({ onOpenLogin, user, onLogout }) {
   const { setOpen, items } = useCart();
   const count = items.reduce((a,b)=>a+(b.quantity||0),0);
   const [openModal, setOpenModal] = React.useState(false);
+  const [showProfileDropdown, setShowProfileDropdown] = React.useState(false);
+
+  // Cerrar dropdown al hacer clic fuera
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showProfileDropdown && !event.target.closest('.dropdown')) {
+        setShowProfileDropdown(false);
+      }
+    };
+    
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showProfileDropdown]);
 
   const Link = ({ href, children }) => (
     <a
@@ -53,9 +66,36 @@ export default function Header({ onOpenLogin }) {
                 )}
               </button>
             </li>
-            <li className="nav-item">
-              <button className="btn btn-outline-light ms-lg-1" onClick={onOpenLogin}>Iniciar Sesión</button>
-            </li>
+            {!user ? (
+              <li className="nav-item">
+                <button className="btn btn-outline-light ms-lg-1" onClick={onOpenLogin}>Iniciar Sesión</button>
+              </li>
+            ) : (
+              <li className="nav-item dropdown">
+                <button 
+                  className="btn btn-outline-light ms-lg-1 dropdown-toggle" 
+                  onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                  aria-expanded={showProfileDropdown}
+                >
+                  <i className="bi bi-person-circle"></i> Perfil
+                </button>
+                {showProfileDropdown && (
+                  <ul className="dropdown-menu dropdown-menu-end show" style={{ position: 'absolute', right: 0 }}>
+                    <li>
+                      <button 
+                        className="dropdown-item" 
+                        onClick={() => {
+                          setShowProfileDropdown(false);
+                          onLogout();
+                        }}
+                      >
+                        <i className="bi bi-box-arrow-right"></i> Cerrar Sesión
+                      </button>
+                    </li>
+                  </ul>
+                )}
+              </li>
+            )}
           </ul>
         </div>
       </div>
