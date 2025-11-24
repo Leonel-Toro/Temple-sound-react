@@ -102,9 +102,9 @@ export default function AdminPage() {
     const form = e.currentTarget;
     
     // Obtener valores del formulario
-    const name = form.elements.name.value;
-    const category = form.elements.category.value;
-    const description = form.elements.description.value;
+    const name = form.elements.name.value.trim();
+    const category = form.elements.category.value.trim();
+    const description = form.elements.description.value.trim();
     const price = form.elements.price.value;
     const stock = form.elements.stock.value;
     
@@ -116,7 +116,6 @@ export default function AdminPage() {
     try {
       setBusy(true); setFormErr("");
       
-      // Opción 1: Enviar todo como JSON si no hay imágenes
       const imageInput = form.querySelector('input[name="images"]');
       const hasImages = imageInput?.files && imageInput.files.length > 0;
       
@@ -124,26 +123,26 @@ export default function AdminPage() {
         // Sin imágenes, enviar como JSON
         const payload = {
           name,
+          description: description || "",
           price: Number(price),
           stock: Number(stock),
+          category: category || "",
         };
-        if (category) payload.category = category;
-        if (description) payload.description = description;
         
         const created = await vinylService.create(payload);
         setRows(prev => [created, ...prev]);
       } else {
-        // Con imágenes, enviar como FormData
+        // Con imágenes, usar FormData
         const formData = new FormData();
         formData.append('name', name);
+        formData.append('description', description || "");
         formData.append('price', price);
         formData.append('stock', stock);
-        if (category) formData.append('category', category);
-        if (description) formData.append('description', description);
+        formData.append('category', category || "");
         
-        // Agregar imágenes
-        Array.from(imageInput.files).forEach((file) => {
-          formData.append('image', file);
+        // Agregar archivos con índices para que Xano los procese como array
+        Array.from(imageInput.files).forEach((file, index) => {
+          formData.append(`images[${index}]`, file);
         });
         
         const created = await vinylService.create(formData);
@@ -166,32 +165,90 @@ export default function AdminPage() {
     if (!editRow) return;
     
     const form = e.currentTarget;
-    const formData = new FormData();
     
-    // Agregar campos de texto
-    const name = form.elements.name.value;
-    const category = form.elements.category.value;
-    const description = form.elements.description.value;
+    // Obtener valores del formulario
+    const name = form.elements.name.value.trim();
+    const category = form.elements.category.value.trim();
+    const description = form.elements.description.value.trim();
     const price = form.elements.price.value;
     const stock = form.elements.stock.value;
     
-    formData.append('name', name);
-    if (category) formData.append('category', category);
-    if (description) formData.append('description', description);
-    formData.append('price', price);
-    formData.append('stock', stock);
-    
-    // Agregar imágenes si se seleccionaron nuevas
-    const imageInput = form.querySelector('input[name="images"]');
-    if (imageInput?.files && imageInput.files.length > 0) {
-      Array.from(imageInput.files).forEach((file) => {
-        formData.append('image', file);
-      });
+    if (!name || !price || !stock) {
+      setFormErr("Nombre, precio y stock son requeridos");
+      return;
     }
     
     try {
       setBusy(true); setFormErr("");
-      const updated = await vinylService.update(editRow.id, formData);
+      
+      // Verificar si hay nuevas imágenes
+      const imageInput = form.querySelector('input[name="images"]');
+      const hasNewImages = imageInput?.files && imageInput.files.length > 0;
+      
+      let updated;
+      
+      if (!hasNewImages) {
+        // Sin nuevas imágenes, enviar JSON con id
+        const payload = {
+          id: editRow.id,
+          name,
+          description: description || "",
+          price: Number(price),
+          stock: Number(stock),
+          category: category || ""
+        };
+        
+        console.log('📤 EDITAR SIN IMÁGENES - Payload JSON:', payload);
+        
+        updated = await vinylService.update(editRow.id, payload);
+        
+        console.log('✅ Respuesta de la API:', updated);
+      } else {
+        // Con nuevas imágenes, usar FormData
+        const formData = new FormData();
+        formData.append('id', editRow.id);
+        formData.append('name', name);
+        formData.append('description', description || "");
+        formData.append('price', price);
+        formData.append('stock', stock);
+        formData.append('category', category || "");
+        
+        // Agregar archivos con índices para que Xano los procese como array
+        const files = Array.from(imageInput.files);
+        console.log('📸 Archivos seleccionados:', files.length);
+        files.forEach((file, index) => {
+          console.log(`  - Archivo ${index}:`, file.name, file.type, file.size);
+          formData.append(`images[${index}]`, file);
+        });
+        
+        console.log('📤 EDITAR CON IMÁGENES - FormData:');
+        console.log('  - ID del vinilo:', editRow.id);
+        console.log('  - Nombre:', name);
+        console.log('  - Descripción:', description);
+        console.log('  - Precio:', price);
+        console.log('  - Stock:', stock);
+        console.log('  - Categoría:', category);
+        console.log('  - Cantidad de imágenes:', files.length);
+        console.log('📦 Entradas de FormData:');
+        for (let pair of formData.entries()) {
+          if (pair[1] instanceof File) {
+            console.log('  -', pair[0], ':', pair[1].name, `(${pair[1].size} bytes)`);
+          } else {
+            console.log('  -', pair[0], ':', pair[1]);
+          }
+        }
+        
+        updated = await vinylService.update(editRow.id, formData);
+        
+        console.log('✅ Respuesta de la API:', updated);
+      }
+      
+      console.log('🔄 Actualizando tabla local...');
+      console.log('  - editRow.id:', editRow.id);
+      console.log('  - updated:', updated);
+      console.log('  - updated.id:', updated?.id);
+      console.log('  - ¿IDs coinciden?', editRow.id === updated?.id);
+      
       setRows(prev => prev.map(x => x.id === updated.id ? updated : x));
       setEditRow(null);
       setImagePreviews([]);
@@ -305,7 +362,7 @@ export default function AdminPage() {
                       <td>
                         <div className="btn-group btn-group-sm">
                           <a href={`/vinilo/${v.id}`} className="btn btn-outline-light">Ver</a>
-                          <button className="btn btn-outline-light" onClick={()=>setEditRow(v)}>Editar</button>
+                          <button className="btn btn-outline-light" onClick={()=>{setEditRow(v); setFormErr(""); setImagePreviews([]);}}>Editar</button>
                           <button className="btn btn-outline-danger" onClick={()=>onDelete(v)}>Eliminar</button>
                         </div>
                       </td>
@@ -431,7 +488,7 @@ export default function AdminPage() {
               <form className="modal-content bg-dark text-white" onSubmit={onUpdate}>
                 <div className="modal-header">
                   <h5 className="modal-title">Editar vinilo</h5>
-                  <button type="button" className="btn-close btn-close-white" onClick={()=>setEditRow(null)} />
+                  <button type="button" className="btn-close btn-close-white" onClick={()=>{setEditRow(null); setFormErr(""); setImagePreviews([]);}} />
                 </div>
                 <div className="modal-body">
                   {formErr && <div className="alert alert-danger">{formErr}</div>}
@@ -474,14 +531,14 @@ export default function AdminPage() {
                           ))}
                         </div>
                         <small className="text-white-50 d-block mt-1">
-                          Si subes nuevas imágenes, se agregarán a las existentes
+                          Las imágenes actuales se mantendrán. Si subes nuevas, se reemplazarán por completo.
                         </small>
                       </div>
                     )}
                     
                     {/* Nuevas imágenes */}
                     <div className="col-12">
-                      <label className="form-label">Agregar nuevas imágenes</label>
+                      <label className="form-label">Actualizar imágenes (opcional)</label>
                       <input 
                         type="file" 
                         name="images" 
@@ -491,7 +548,7 @@ export default function AdminPage() {
                         onChange={handleImageChange}
                       />
                       <small className="text-white-50 d-block mt-1">
-                        Opcional: Selecciona nuevas imágenes para agregar
+                        Si subes imágenes nuevas, reemplazarán las actuales. Déjalo vacío para mantener las existentes.
                       </small>
                     </div>
                     {imagePreviews.length > 0 && (
@@ -526,13 +583,13 @@ export default function AdminPage() {
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="button" className="btn btn-outline-secondary" onClick={()=>{setEditRow(null); setImagePreviews([]);}} disabled={busy}>Cancelar</button>
+                  <button type="button" className="btn btn-outline-secondary" onClick={()=>{setEditRow(null); setFormErr(""); setImagePreviews([]);}} disabled={busy}>Cancelar</button>
                   <button type="submit" className="btn btn-light" disabled={busy}>{busy? "Guardando…":"Guardar"}</button>
                 </div>
               </form>
             </div>
           </div>
-          <div className="modal-backdrop fade show" onClick={()=>{setEditRow(null); setImagePreviews([]);}} />
+          <div className="modal-backdrop fade show" onClick={()=>{setEditRow(null); setFormErr(""); setImagePreviews([]);}} />
         </>
       )}
     </div>

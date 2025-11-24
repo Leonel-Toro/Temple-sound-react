@@ -95,7 +95,7 @@ export default function VinilosPage() {
                   ) : (
                     <div className="ratio ratio-1x1 bg-secondary"></div>
                   )}
-                  <div className="card-body">
+                  <div className="card-body align-content-end">
                     <h6 className="card-title mb-1">{vinyl.name}</h6>
                     <div className="text-muted small mb-2">{vinyl.category || "—"}</div>
                     <button

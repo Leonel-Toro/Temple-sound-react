@@ -27,9 +27,26 @@ export const vinylService = {
 
   /**
    * Actualiza un vinilo e invalida el cache relacionado
+   * Usa POST en /update_vinilo
    */
   update: async (id, payload) => {
-    const result = await api.patch(`/vinyl/${id}`, payload);
+    console.log('🔧 vinylService.update llamado');
+    console.log('  - ID:', id);
+    console.log('  - Tipo de payload:', payload instanceof FormData ? 'FormData' : 'JSON');
+    console.log('  - Endpoint: /update_vinilo');
+    
+    if (payload instanceof FormData) {
+      console.log('📦 FormData a enviar:');
+      for (let pair of payload.entries()) {
+        console.log('  -', pair[0], ':', pair[1]);
+      }
+    } else {
+      console.log('📦 JSON a enviar:', payload);
+    }
+    
+    const result = await api.post("/update_vinilo", payload);
+    console.log('✅ Respuesta recibida:', result);
+    
     vinylCache.invalidate(`vinyl:${id}`);
     vinylCache.invalidate("vinyl:list");
     return result;

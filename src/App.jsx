@@ -153,7 +153,7 @@ export default function App() {
   }
   
   return (
-    <div className="d-flex flex-column min-vh-100 bg-light">
+    <div className="d-flex flex-column min-vh-100 bg-dark">
       {!isAdmin && <Header onOpenLogin={() => setShowLogin(true)} user={user} onLogout={handleLogout} />}
 
       <main className={isAdmin ? "" : "flex-grow-1"}>
