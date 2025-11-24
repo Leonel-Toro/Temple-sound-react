@@ -12,68 +12,190 @@ export function CartProvider({ children }) {
   const [cart, setCart] = React.useState(null);
   const [items, setItems] = React.useState([]);
   const [open, setOpen] = React.useState(false);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
+  const [initialized, setInitialized] = React.useState(false);
 
+  // Inicializar carrito solo cuando se necesite (lazy initialization)
+  const ensureCartInitialized = React.useCallback(async () => {
+    if (cart) return cart;
+    
+    try {
+      const c = await cartService.ensureCart();
+      setCart(c);
+      return c;
+    } catch (e) {
+      setError(e.message);
+      throw e;
+    }
+  }, [cart]);
+
+  // Cargar items solo cuando se abre el modal por primera vez
   React.useEffect(() => {
-    (async () => {
-      try {
-        const c = await cartService.ensureCart();
-        setCart(c);
-        await refresh(c);
-      } catch (e) {
-        setError(e.message);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+    if (open && !initialized) {
+      (async () => {
+        try {
+          setLoading(true);
+          const c = await ensureCartInitialized();
+          await refresh(c);
+          setInitialized(true);
+        } catch (e) {
+          setError(e.message);
+        } finally {
+          setLoading(false);
+        }
+      })();
+    }
+  }, [open, initialized, ensureCartInitialized]);
 
   async function refresh(c = cart) {
     if (!c) return;
     const its = await cartService.listItems(c.id);
-    const detailed = await Promise.all(
-      its.map(async (it) => {
-        try {
-          const v = await vinylService.get(it.vinyl_id);
-          return { ...it, vinyl: v };
-        } catch {
-          return it;
-        }
-      })
+    
+    if (its.length === 0) {
+      setItems([]);
+      return;
+    }
+
+    // OPTIMIZACIÓN: Obtener vinilos solo de los que necesitamos
+    // Primero intentar obtener del cache
+    const vinylIds = its.map(it => it.vinyl_id);
+    const uniqueIds = [...new Set(vinylIds)];
+    
+    // Obtener vinilos (usará cache automáticamente si están disponibles)
+    const vinyls = await Promise.all(
+      uniqueIds.map(id => vinylService.get(id).catch(() => null))
     );
+    
+    // Crear un mapa de vinilos por ID para acceso rápido
+    const vinylMap = new Map(vinyls.filter(Boolean).map(v => [v.id, v]));
+    
+    // Combinar items con sus vinilos correspondientes
+    const detailed = its.map(it => ({
+      ...it,
+      vinyl: vinylMap.get(it.vinyl_id) || null
+    }));
+    
     setItems(detailed);
   }
 
   async function add(vinyl, qty = 1) {
-    if (!cart) return;
-    await cartService.addOrUpdate(cart.id, vinyl, qty);
-    await refresh();
+    // Asegurar que el carrito esté inicializado
+    const c = await ensureCartInitialized();
+    
+    try {
+      // Realizar la operación en el servidor primero
+      await cartService.addOrUpdate(c.id, vinyl, qty, items);
+      
+      // Actualización optimista después de confirmar
+      const existing = items.find(it => it.vinyl_id === vinyl.id);
+      if (existing) {
+        setItems(prev => prev.map(it => 
+          it.vinyl_id === vinyl.id 
+            ? { ...it, quantity: it.quantity + qty }
+            : it
+        ));
+      } else {
+        const newItem = {
+          vinyl_id: vinyl.id,
+          quantity: qty,
+          vinyl: vinyl,
+          cart_id: c.id
+        };
+        setItems(prev => [...prev, newItem]);
+      }
+      
+      // Invalidar cache para la próxima recarga
+      cartService.invalidateCache(c.id);
+    } catch (e) {
+      console.error("Error al agregar al carrito:", e);
+      throw e;
+    }
   }
 
   async function increment(item) {
-    if (!cart) return;
-    const vinyl = item.vinyl ?? (await vinylService.get(item.vinyl_id));
-    await cartService.addOrUpdate(cart.id, vinyl, +1);
-    await refresh();
+    const c = await ensureCartInitialized();
+    const vinyl = item.vinyl;
+    
+    // VALIDACIÓN: Verificar que no supere el stock disponible
+    if (vinyl && typeof vinyl.stock === 'number' && item.quantity >= vinyl.stock) {
+      alert(`Stock máximo disponible: ${vinyl.stock}`);
+      return;
+    }
+    
+    try {
+      await cartService.addOrUpdate(c.id, vinyl, +1, items);
+      
+      setItems(prev => prev.map(it => 
+        it.id === item.id || it.vinyl_id === item.vinyl_id
+          ? { ...it, quantity: it.quantity + 1 }
+          : it
+      ));
+      
+      cartService.invalidateCache(c.id);
+    } catch (e) {
+      console.error("Error al incrementar:", e);
+      await refresh();
+      throw e;
+    }
   }
 
   async function decrement(item) {
-    if (!cart) return;
-    const vinyl = item.vinyl ?? (await vinylService.get(item.vinyl_id));
-    await cartService.addOrUpdate(cart.id, vinyl, -1);
-    await refresh();
+    const c = await ensureCartInitialized();
+    const vinyl = item.vinyl;
+    const newQty = item.quantity - 1;
+    
+    try {
+      await cartService.addOrUpdate(c.id, vinyl, -1, items);
+      
+      if (newQty <= 0) {
+        setItems(prev => prev.filter(it => it.id !== item.id && it.vinyl_id !== item.vinyl_id));
+      } else {
+        setItems(prev => prev.map(it => 
+          it.id === item.id || it.vinyl_id === item.vinyl_id
+            ? { ...it, quantity: newQty }
+            : it
+        ));
+      }
+      
+      cartService.invalidateCache(c.id);
+    } catch (e) {
+      console.error("Error al decrementar:", e);
+      await refresh();
+      throw e;
+    }
   }
 
   async function remove(itemId) {
-    await cartService.removeItem(itemId);
-    await refresh();
+    const c = cart || await ensureCartInitialized();
+    
+    try {
+      await cartService.removeItem(itemId, c.id);
+      
+      setItems(prev => prev.filter(it => it.id !== itemId));
+      
+      cartService.invalidateCache(c.id);
+    } catch (e) {
+      console.error("Error al eliminar:", e);
+      await refresh();
+      throw e;
+    }
   }
 
   async function clear() {
-    if (!cart) return;
-    await cartService.clear(cart.id);
-    await refresh();
+    const c = await ensureCartInitialized();
+    
+    try {
+      await cartService.clear(c.id);
+      
+      setItems([]);
+      
+      cartService.invalidateCache(c.id);
+    } catch (e) {
+      console.error("Error al limpiar carrito:", e);
+      await refresh();
+      throw e;
+    }
   }
 
   const value = {

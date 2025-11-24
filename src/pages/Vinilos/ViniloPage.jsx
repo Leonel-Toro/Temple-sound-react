@@ -19,7 +19,7 @@ function useVinylIdProp(idProp) {
 
 export default function ViniloPage({ id: idProp }) {
   const id = useVinylIdProp(idProp);
-  const { add } = useCart();
+  const { add, setOpen } = useCart();
 
   const [v, setV] = React.useState(null);
   const [qty, setQty] = React.useState(1);
@@ -34,24 +34,11 @@ export default function ViniloPage({ id: idProp }) {
       try {
         setLoading(true);
         setError("");
-        const data = await vinylService.get(id);
+        const vinyl = await vinylService.get(id);
         if (!mounted) return;
-        setV({
-          id: data.id,
-          nombre: data.name,
-          descripcion: data.description,
-          precio: data.price,
-          stock: data.stock,
-          categoria: data.category || "",
-          imagenes: data.image || [], // Guardar array completo de imágenes
-          // Campos opcionales: si luego agregas year, label, etc, mapea aquí:
-          year: data.year ?? "",
-          sello: data.label ?? "",
-          codigo: data.code ?? "",
-          formato: data.format ?? "LP",
-          rpm: data.rpm ?? '12" · 33⅓ RPM',
-          genero: data.category || "—",
-        });
+        
+        // Usar datos de API directamente
+        setV(vinyl);
       } catch (e) {
         setError(e.message || "No se pudo cargar el vinilo");
       } finally {
@@ -63,18 +50,18 @@ export default function ViniloPage({ id: idProp }) {
 
   // Navegación con teclado en el carrusel
   React.useEffect(() => {
-    if (!v || !v.imagenes || v.imagenes.length <= 1) return;
+    if (!v || !v.image || v.image.length <= 1) return;
 
     const handleKeyDown = (e) => {
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
         setCurrentImageIndex(prev => 
-          prev === 0 ? v.imagenes.length - 1 : prev - 1
+          prev === 0 ? v.image.length - 1 : prev - 1
         );
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
         setCurrentImageIndex(prev => 
-          prev === v.imagenes.length - 1 ? 0 : prev + 1
+          prev === v.image.length - 1 ? 0 : prev + 1
         );
       }
     };
@@ -89,8 +76,33 @@ export default function ViniloPage({ id: idProp }) {
       alert("Sin stock disponible");
       return;
     }
+    
     const n = Math.max(1, Number(qty) || 1);
-    await add({ id: v.id, stock: v.stock }, n);
+    
+    try {
+      await add(v, n);
+    } catch (e) {
+      alert(e.message || "Error al agregar al carrito");
+    }
+  };
+
+  const onBuyNow = async () => {
+    if (!v) return;
+    if ((v.stock ?? 0) <= 0) {
+      alert("Sin stock disponible");
+      return;
+    }
+    
+    const n = Math.max(1, Number(qty) || 1);
+    
+    try {
+      // Agregar al carrito
+      await add(v, n);
+      // Abrir el modal de carrito directamente
+      setOpen(true);
+    } catch (e) {
+      alert(e.message || "Error al procesar la compra");
+    }
   };
 
   if (loading) return <main className="py-4 mt-5"><div className="container text-white">Cargando…</div></main>;
@@ -108,7 +120,7 @@ export default function ViniloPage({ id: idProp }) {
               <a href="/vinilos" className="link-light text-decoration-none">Nuestros Vinilos</a>
             </li>
             <li className="breadcrumb-item active text-white-50" aria-current="page">
-              {v.nombre} {v.year ? `— ${v.year}` : ""}
+              {v.name} {v.year ? `— ${v.year}` : ""}
             </li>
           </ol>
         </nav>
@@ -116,26 +128,26 @@ export default function ViniloPage({ id: idProp }) {
         <div className="row g-4">
           {/* Portada */}
           <div className="col-12 col-lg-6">
-            {v.imagenes && v.imagenes.length > 0 ? (
+            {v.image && v.image.length > 0 ? (
               <>
                 {/* Imagen principal */}
                 <div className="card bg-dark border-0 mb-2">
                   <div className="ratio ratio-1x1">
                     <img
-                      src={v.imagenes[currentImageIndex]?.url}
-                      alt={`${v.nombre} - Imagen ${currentImageIndex + 1}`}
+                      src={v.image[currentImageIndex]?.url}
+                      alt={`${v.name} - Imagen ${currentImageIndex + 1}`}
                       className="w-100 h-100 object-fit-cover"
                     />
                   </div>
                   
                   {/* Controles del carrusel */}
-                  {v.imagenes.length > 1 && (
+                  {v.image.length > 1 && (
                     <>
                       <button
                         className="carousel-control-prev position-absolute top-50 start-0 translate-middle-y"
                         type="button"
                         onClick={() => setCurrentImageIndex(prev => 
-                          prev === 0 ? v.imagenes.length - 1 : prev - 1
+                          prev === 0 ? v.image.length - 1 : prev - 1
                         )}
                         style={{ width: '10%' }}
                       >
@@ -146,7 +158,7 @@ export default function ViniloPage({ id: idProp }) {
                         className="carousel-control-next position-absolute top-50 end-0 translate-middle-y"
                         type="button"
                         onClick={() => setCurrentImageIndex(prev => 
-                          prev === v.imagenes.length - 1 ? 0 : prev + 1
+                          prev === v.image.length - 1 ? 0 : prev + 1
                         )}
                         style={{ width: '10%' }}
                       >
@@ -157,7 +169,7 @@ export default function ViniloPage({ id: idProp }) {
                       {/* Indicador de posición */}
                       <div className="position-absolute bottom-0 end-0 m-3">
                         <span className="badge bg-dark bg-opacity-75 text-white">
-                          {currentImageIndex + 1} / {v.imagenes.length}
+                          {currentImageIndex + 1} / {v.image.length}
                         </span>
                       </div>
                     </>
@@ -165,9 +177,9 @@ export default function ViniloPage({ id: idProp }) {
                 </div>
                 
                 {/* Miniaturas */}
-                {v.imagenes.length > 1 && (
+                {v.image.length > 1 && (
                   <div className="d-flex gap-2 overflow-auto pb-2">
-                    {v.imagenes.map((img, idx) => (
+                    {v.image.map((img, idx) => (
                       <button
                         key={idx}
                         type="button"
@@ -200,15 +212,15 @@ export default function ViniloPage({ id: idProp }) {
 
           {/* Info */}
           <div className="col-12 col-lg-6">
-            <h1 className="h3 mb-1">{v.nombre}</h1>
+            <h1 className="h3 mb-1">{v.name}</h1>
             <p className="text-white-50 mb-2">
-              {v.categoria || "—"} {v.year ? `· ${v.year}` : ""}
+              {v.category || "—"} {v.year ? `· ${v.year}` : ""}
             </p>
 
             <div className="d-flex align-items-center gap-2 mb-3">
-              <span className="badge text-bg-secondary">{v.formato}</span>
-              <span className="badge text-bg-secondary">{v.rpm}</span>
-              <span className="badge text-bg-secondary">{v.genero}</span>
+              <span className="badge text-bg-secondary">{v.format || "LP"}</span>
+              <span className="badge text-bg-secondary">{v.rpm || '12" · 33⅓ RPM'}</span>
+              <span className="badge text-bg-secondary">{v.category || "—"}</span>
             </div>
 
             <hr className="border-secondary opacity-25" />
@@ -216,7 +228,7 @@ export default function ViniloPage({ id: idProp }) {
             <div className="d-flex justify-content-between align-items-end">
               <div>
                 <div className="small text-white-50">Precio</div>
-                <div className="display-6 fw-bold">{fmtCLP(v.precio).replace("CLP","$")}</div>
+                <div className="display-6 fw-bold">{fmtCLP(v.price).replace("CLP","$")}</div>
               </div>
               <div className="text-end">
                 <span className={`badge ${ (v.stock ?? 0) > 0 ? "text-bg-success" : "text-bg-secondary"}`}>
@@ -253,7 +265,7 @@ export default function ViniloPage({ id: idProp }) {
               </div>
 
               <div className="d-grid d-sm-flex gap-2 mt-2">
-                <button type="button" className="btn btn-outline-light flex-grow-1" onClick={onAdd} disabled={(v.stock ?? 0) <= 0}>
+                <button type="button" className="btn btn-outline-light flex-grow-1" onClick={onBuyNow} disabled={(v.stock ?? 0) <= 0}>
                   Comprar ahora
                 </button>
                 <button type="button" className="btn btn-outline-secondary"><i className="bi bi-heart"></i></button>
@@ -312,7 +324,7 @@ export default function ViniloPage({ id: idProp }) {
               {/* Descripción */}
               <div className={`tab-pane fade ${activeTab==="descripcion" ? "show active" : ""}`} id="pane-descripcion" role="tabpanel" aria-labelledby="tab-descripcion">
                 <p className="text-white-50 mb-0">
-                  {v.descripcion || "Sin descripción."}
+                  {v.description || "Sin descripción."}
                 </p>
               </div>
 
@@ -347,12 +359,12 @@ export default function ViniloPage({ id: idProp }) {
                 <div className="table-responsive">
                   <table className="table table-dark table-borderless align-middle mb-0">
                     <tbody>
-                      <tr><th className="fw-normal text-white-50">Formato</th><td>{v.formato}</td></tr>
-                      <tr><th className="fw-normal text-white-50">Género</th><td>{v.genero}</td></tr>
+                      <tr><th className="fw-normal text-white-50">Formato</th><td>{v.format || "LP"}</td></tr>
+                      <tr><th className="fw-normal text-white-50">Género</th><td>{v.category || "—"}</td></tr>
                       <tr><th className="fw-normal text-white-50">Año</th><td>{v.year || "—"}</td></tr>
-                      <tr><th className="fw-normal text-white-50">Sello</th><td>{v.sello || "—"}</td></tr>
+                      <tr><th className="fw-normal text-white-50">Sello</th><td>{v.label || "—"}</td></tr>
                       <tr><th className="fw-normal text-white-50">País</th><td>—</td></tr>
-                      <tr><th className="fw-normal text-white-50">Código</th><td>{v.codigo || "—"}</td></tr>
+                      <tr><th className="fw-normal text-white-50">Código</th><td>{v.code || "—"}</td></tr>
                     </tbody>
                   </table>
                 </div>

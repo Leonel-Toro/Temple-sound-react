@@ -31,26 +31,20 @@ export default function PagoPage({ id: idProp }) {
         const o = await orderService.get(id);
         const rawItems = await orderService.listItems(id);
 
-        // Enriquecer cada item con info del vinilo (nombre, imagen, categoría)
-        const detailed = await Promise.all(
-          rawItems.map(async (it) => {
-            try {
-              const v = await vinylService.get(it.vinyl_id);
-              return {
-                ...it,
-                vinyl: {
-                  id: v.id,
-                  name: v.name,
-                  category: v.category,
-                  image: v.image?.[0]?.url || "",
-                  price: v.price,
-                },
-              };
-            } catch {
-              return { ...it, vinyl: null };
-            }
-          })
+        // OPTIMIZACIÓN: Obtener vinilos en paralelo usando cache
+        const vinylIds = [...new Set(rawItems.map(it => it.vinyl_id))];
+        const vinyls = await Promise.all(
+          vinylIds.map(id => vinylService.get(id).catch(() => null))
         );
+        
+        // Crear un mapa de vinilos por ID para acceso rápido
+        const vinylMap = new Map(vinyls.filter(Boolean).map(v => [v.id, v]));
+        
+        // Enriquecer cada item con info del vinilo
+        const detailed = rawItems.map(it => ({
+          ...it,
+          vinyl: vinylMap.get(it.vinyl_id) || null
+        }));
 
         if (!alive) return;
         setOrder(o);
@@ -109,6 +103,7 @@ export default function PagoPage({ id: idProp }) {
                   <div className="list-group list-group-flush">
                     {items.map((it) => {
                       const v = it.vinyl;
+                      const imgUrl = v?.image?.[0]?.url || "";
                       const unit = Number(it.price_unit) || Number(v?.price) || 0;
                       const lineTotal = unit * Number(it.quantity || 0);
                       return (
@@ -116,9 +111,9 @@ export default function PagoPage({ id: idProp }) {
                           <div className="d-flex align-items-center">
                             {/* Imagen */}
                             <div className="me-3">
-                              {v?.image ? (
+                              {imgUrl ? (
                                 <img
-                                  src={v.image}
+                                  src={imgUrl}
                                   alt={v?.name || `Vinilo ${it.vinyl_id}`}
                                   width="72"
                                   height="72"

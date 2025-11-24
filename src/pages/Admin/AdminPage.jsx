@@ -1,5 +1,6 @@
 import React from "react";
 import { vinylService } from "../../services/vinylService";
+import { vinylCache } from "../../services/cacheService";
 
 const fmtCLP = (v) =>
   new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 })
@@ -39,6 +40,7 @@ export default function AdminPage() {
     try {
       setLoading(true);
       setError("");
+      // El cache en vinylService ya optimiza esta llamada
       const data = await vinylService.list();
       setRows(Array.isArray(data) ? data : []);
     } catch (e) {
@@ -97,24 +99,62 @@ export default function AdminPage() {
 
   async function onCreate(e) {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+    const form = e.currentTarget;
     
-    const imageInput = e.currentTarget.querySelector('input[name="images"]');
-    if (imageInput?.files) {
-      // Xano espera archivos con el nombre del campo "image"
-      Array.from(imageInput.files).forEach((file) => {
-        formData.append('image', file);
-      });
+    // Obtener valores del formulario
+    const name = form.elements.name.value;
+    const category = form.elements.category.value;
+    const description = form.elements.description.value;
+    const price = form.elements.price.value;
+    const stock = form.elements.stock.value;
+    
+    if (!name || !price || !stock) {
+      setFormErr("Nombre, precio y stock son requeridos");
+      return;
     }
     
     try {
       setBusy(true); setFormErr("");
-      const created = await vinylService.create(formData);
-      setRows(prev => [created, ...prev]);
+      
+      // Opción 1: Enviar todo como JSON si no hay imágenes
+      const imageInput = form.querySelector('input[name="images"]');
+      const hasImages = imageInput?.files && imageInput.files.length > 0;
+      
+      if (!hasImages) {
+        // Sin imágenes, enviar como JSON
+        const payload = {
+          name,
+          price: Number(price),
+          stock: Number(stock),
+        };
+        if (category) payload.category = category;
+        if (description) payload.description = description;
+        
+        const created = await vinylService.create(payload);
+        setRows(prev => [created, ...prev]);
+      } else {
+        // Con imágenes, enviar como FormData
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('price', price);
+        formData.append('stock', stock);
+        if (category) formData.append('category', category);
+        if (description) formData.append('description', description);
+        
+        // Agregar imágenes
+        Array.from(imageInput.files).forEach((file) => {
+          formData.append('image', file);
+        });
+        
+        const created = await vinylService.create(formData);
+        setRows(prev => [created, ...prev]);
+      }
+      
       setShowCreate(false);
       setImagePreviews([]);
-      e.currentTarget.reset();
+      form.reset();
     } catch (err) {
+      console.error("Error al crear vinilo:", err);
       setFormErr(err.message || "No se pudo crear el producto");
     } finally {
       setBusy(false);
@@ -124,10 +164,25 @@ export default function AdminPage() {
   async function onUpdate(e) {
     e.preventDefault();
     if (!editRow) return;
-    const formData = new FormData(e.currentTarget);
+    
+    const form = e.currentTarget;
+    const formData = new FormData();
+    
+    // Agregar campos de texto
+    const name = form.elements.name.value;
+    const category = form.elements.category.value;
+    const description = form.elements.description.value;
+    const price = form.elements.price.value;
+    const stock = form.elements.stock.value;
+    
+    formData.append('name', name);
+    if (category) formData.append('category', category);
+    if (description) formData.append('description', description);
+    formData.append('price', price);
+    formData.append('stock', stock);
     
     // Agregar imágenes si se seleccionaron nuevas
-    const imageInput = e.currentTarget.querySelector('input[name="images"]');
+    const imageInput = form.querySelector('input[name="images"]');
     if (imageInput?.files && imageInput.files.length > 0) {
       Array.from(imageInput.files).forEach((file) => {
         formData.append('image', file);
@@ -141,6 +196,7 @@ export default function AdminPage() {
       setEditRow(null);
       setImagePreviews([]);
     } catch (err) {
+      console.error("Error al actualizar vinilo:", err);
       setFormErr(err.message || "No se pudo actualizar");
     } finally {
       setBusy(false);

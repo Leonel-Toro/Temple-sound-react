@@ -24,24 +24,17 @@ export default function VinilosPage() {
       setError("");
       try {
         const data = await vinylService.list();
+        const vinyls = data || [];
 
-        const normalizados = (data || []).map((v) => ({
-          id: v.id,
-          nombre: v.name,
-          descripcion: v.description,
-          precio: v.price,
-          stock: v.stock,
-          categoria: v.category || "",
-          imagen: v.image?.[0]?.url || "",
-          created_at: v.created_at,
-        }));
-
-        const top = normalizados.slice(0, 6);
+        // Ordenar por fecha de creación (más recientes primero)
+        const sorted = [...vinyls].sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+        
+        const top = sorted.slice(0, 6);
         setNovedades(top);
+        setCatalogo(vinyls);
 
-        setCatalogo(normalizados);
-
-        const setCat = new Set(normalizados.map((x) => x.categoria).filter(Boolean));
+        // Extraer categorías únicas
+        const setCat = new Set(vinyls.map((v) => v.category).filter(Boolean));
         setCategorias(Array.from(setCat).sort((a, b) => a.localeCompare(b)));
       } catch (e) {
         setError(e.message || "Error al cargar vinilos");
@@ -51,16 +44,21 @@ export default function VinilosPage() {
     })();
   }, []);
 
-  const handleAdd = async (item) => {
-    if ((item.stock ?? 0) <= 0) {
+  const handleAdd = async (vinyl) => {
+    if ((vinyl.stock ?? 0) <= 0) {
       alert("Sin stock disponible");
       return;
     }
-    await add({ id: item.id, stock: item.stock }, 1);
+    
+    try {
+      await add(vinyl, 1);
+    } catch (e) {
+      alert(e.message || "Error al agregar al carrito");
+    }
   };
 
   const listaFiltrada = categoriaSel
-    ? catalogo.filter((x) => x.categoria === categoriaSel)
+    ? catalogo.filter((v) => v.category === categoriaSel)
     : catalogo;
 
   if (loading) return <div className="container py-4 text-light">Cargando…</div>;
@@ -79,35 +77,38 @@ export default function VinilosPage() {
           </button>
 
           <div id="novedadesRow" className="flex-grow-1 d-flex gap-3 overflow-auto no-scrollbar px-1">
-            {novedades.map((item) => (
-              <div
-                key={item.id}
-                className="card bg-dark border-secondary text-light"
-                style={{ minWidth: 220, maxWidth: 260 }}
-              >
-                <a
-                  href={`/vinilo/${item.id}`}
-                  className="stretched-link"
-                  aria-label={`Ver ${item.nombre}`}
-                />
-                {item.imagen ? (
-                  <img src={item.imagen} className="card-img-top" alt={item.nombre} />
-                ) : (
-                  <div className="ratio ratio-1x1 bg-secondary"></div>
-                )}
-                <div className="card-body">
-                  <h6 className="card-title mb-1">{item.nombre}</h6>
-                  <div className="text-muted small mb-2">{item.categoria || "—"}</div>
-                  <button
-                    className="btn btn-outline-light w-100"
-                    onClick={() => handleAdd(item)}
-                    disabled={(item.stock ?? 0) <= 0}
-                  >
-                    Añadir al carrito
-                  </button>
+            {novedades.map((vinyl) => {
+              const imageUrl = vinyl.image?.[0]?.url || "";
+              return (
+                <div
+                  key={vinyl.id}
+                  className="card bg-dark border-secondary text-light"
+                  style={{ minWidth: 220, maxWidth: 260 }}
+                >
+                  <a
+                    href={`/vinilo/${vinyl.id}`}
+                    className="stretched-link"
+                    aria-label={`Ver ${vinyl.name}`}
+                  />
+                  {imageUrl ? (
+                    <img src={imageUrl} className="card-img-top" alt={vinyl.name} />
+                  ) : (
+                    <div className="ratio ratio-1x1 bg-secondary"></div>
+                  )}
+                  <div className="card-body">
+                    <h6 className="card-title mb-1">{vinyl.name}</h6>
+                    <div className="text-muted small mb-2">{vinyl.category || "—"}</div>
+                    <button
+                      className="btn btn-outline-light w-100"
+                      onClick={() => handleAdd(vinyl)}
+                      disabled={(vinyl.stock ?? 0) <= 0}
+                    >
+                      Añadir al carrito
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <button
@@ -123,39 +124,42 @@ export default function VinilosPage() {
       <section className="container">
         <h2 className="text-light mb-3">Nuestros Vinilos</h2>
         <div className="row g-3">
-          {listaFiltrada.map((item) => (
-            <div key={item.id} className="col-12 col-sm-6 col-md-4">
-              <div className="card bg-dark border-secondary text-light h-100">
-                <a
-                  href={`/vinilo/${item.id}`}
-                  className="stretched-link"
-                  aria-label={`Ver ${item.nombre}`}
-                />
-                {item.imagen ? (
-                  <img src={item.imagen} className="card-img-top" alt={item.nombre} />
-                ) : (
-                  <div className="ratio ratio-16x9 bg-secondary"></div>
-                )}
+          {listaFiltrada.map((vinyl) => {
+            const imageUrl = vinyl.image?.[0]?.url || "";
+            return (
+              <div key={vinyl.id} className="col-12 col-sm-6 col-md-4">
+                <div className="card bg-dark border-secondary text-light h-100">
+                  <a
+                    href={`/vinilo/${vinyl.id}`}
+                    className="stretched-link"
+                    aria-label={`Ver ${vinyl.name}`}
+                  />
+                  {imageUrl ? (
+                    <img src={imageUrl} className="card-img-top" alt={vinyl.name} />
+                  ) : (
+                    <div className="ratio ratio-16x9 bg-secondary"></div>
+                  )}
 
-                <div className="card-img-overlay d-flex flex-column justify-content-end p-2 p-md-3" style={{position: 'absolute',bottom: '60px'}}>
-                  <div className="d-flex justify-content-between small" style={{background:'#00000082',padding:'.5rem',borderRadius:'5px'}}>
-                    <span className="text-truncate">{item.nombre}</span>
-                    <span className="fw-bold">{fmtCLP(item.precio).replace("CLP ", "$ ")}</span>
+                  <div className="card-img-overlay d-flex flex-column justify-content-end p-2 p-md-3" style={{position: 'absolute',bottom: '60px'}}>
+                    <div className="d-flex justify-content-between small" style={{background:'#00000082',padding:'.5rem',borderRadius:'5px'}}>
+                      <span className="text-truncate">{vinyl.name}</span>
+                      <span className="fw-bold">{fmtCLP(vinyl.price).replace("CLP ", "$ ")}</span>
+                    </div>
+                  </div>
+
+                  <div className="card-body d-flex flex-column">
+                    <button
+                      className="btn btn-outline-light mt-auto"
+                      onClick={() => handleAdd(vinyl)}
+                      disabled={(vinyl.stock ?? 0) <= 0}
+                    >
+                      Añadir al carrito
+                    </button>
                   </div>
                 </div>
-
-                <div className="card-body d-flex flex-column">
-                  <button
-                    className="btn btn-outline-light mt-auto"
-                    onClick={() => handleAdd(item)}
-                    disabled={(item.stock ?? 0) <= 0}
-                  >
-                    Añadir al carrito
-                  </button>
-                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           {listaFiltrada.length === 0 && (
             <div className="col-12">
               <div className="alert alert-secondary text-light bg-dark border-secondary">
