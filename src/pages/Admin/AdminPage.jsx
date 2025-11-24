@@ -215,39 +215,14 @@ export default function AdminPage() {
         
         // Agregar archivos con índices para que Xano los procese como array
         const files = Array.from(imageInput.files);
-        console.log('📸 Archivos seleccionados:', files.length);
         files.forEach((file, index) => {
           console.log(`  - Archivo ${index}:`, file.name, file.type, file.size);
           formData.append(`images[${index}]`, file);
         });
-        
-        console.log('📤 EDITAR CON IMÁGENES - FormData:');
-        console.log('  - ID del vinilo:', editRow.id);
-        console.log('  - Nombre:', name);
-        console.log('  - Descripción:', description);
-        console.log('  - Precio:', price);
-        console.log('  - Stock:', stock);
-        console.log('  - Categoría:', category);
-        console.log('  - Cantidad de imágenes:', files.length);
-        console.log('📦 Entradas de FormData:');
-        for (let pair of formData.entries()) {
-          if (pair[1] instanceof File) {
-            console.log('  -', pair[0], ':', pair[1].name, `(${pair[1].size} bytes)`);
-          } else {
-            console.log('  -', pair[0], ':', pair[1]);
-          }
-        }
-        
+
         updated = await vinylService.update(editRow.id, formData);
         
-        console.log('✅ Respuesta de la API:', updated);
       }
-      
-      console.log('🔄 Actualizando tabla local...');
-      console.log('  - editRow.id:', editRow.id);
-      console.log('  - updated:', updated);
-      console.log('  - updated.id:', updated?.id);
-      console.log('  - ¿IDs coinciden?', editRow.id === updated?.id);
       
       setRows(prev => prev.map(x => x.id === updated.id ? updated : x));
       setEditRow(null);

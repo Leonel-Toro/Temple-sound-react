@@ -33,7 +33,7 @@ export default function Header({ onOpenLogin, user, onLogout }) {
     <nav className="navbar navbar-expand-md navbar-dark bg-black fixed-top shadow">
       <div className="container-fluid justify-content-end">
         <a href="/">
-        <img src="./assets/img/logo3.png" alt="Logo_Templatesonund" style={{ width: 100, filter: 'brightness(0) invert(1)' }}/>
+        <img src="/assets/img/logo3.png" alt="Logo_Templatesonund" style={{ width: 100, filter: 'brightness(0) invert(1)' }}/>
         </a>
         <button
           className="navbar-toggler"
