@@ -18,3 +18,53 @@
     background-color: black;
     color: white;
 }
+
+.card .card-body{
+    z-index: 100;
+}
+
+.card-product{
+    transition: transform 0.3s ease;
+    cursor: pointer;
+}
+
+.card-product:hover{
+    transform: scale(1.2);
+}
+
+.card-product a{
+    text-decoration: none;
+    color: inherit;
+}
+
+.card-vinilo-product, .card-vinilo-product-main {
+    transition: transform 0.3s ease;
+    cursor: pointer;
+}
+
+.card-vinilo-product:hover{
+    transform: scale(1.1);
+}
+
+.card-vinilo-product-main:hover{
+    transform: scale(1.05);
+}
+
+.card-vinilo-product a,.card-vinilo-product-main a{
+    text-decoration: none;
+    color: inherit;
+}
+
+#novedadesRow {
+    padding: 2rem 0 !important;
+    margin: -2rem 0 !important;
+}
+
+.card-vinilo-product {
+    position: relative;
+    z-index: 1;
+}
+
+.card-vinilo-product:hover {
+    z-index: 10;
+}

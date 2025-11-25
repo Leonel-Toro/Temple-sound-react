@@ -268,8 +268,6 @@ export default function ViniloPage({ id: idProp }) {
                 <button type="button" className="btn btn-outline-light flex-grow-1" onClick={onBuyNow} disabled={(v.stock ?? 0) <= 0}>
                   Comprar ahora
                 </button>
-                <button type="button" className="btn btn-outline-secondary"><i className="bi bi-heart"></i></button>
-                <button type="button" className="btn btn-outline-secondary"><i className="bi bi-share"></i></button>
               </div>
             </form>
 

@@ -82,19 +82,19 @@ export default function VinilosPage() {
               return (
                 <div
                   key={vinyl.id}
-                  className="card bg-dark border-secondary text-light"
+                  className="card bg-dark border-secondary text-light card-vinilo-product"
                   style={{ minWidth: 220, maxWidth: 260 }}
                 >
                   <a
                     href={`/vinilo/${vinyl.id}`}
-                    className="stretched-link"
                     aria-label={`Ver ${vinyl.name}`}
-                  />
-                  {imageUrl ? (
-                    <img src={imageUrl} className="card-img-top" alt={vinyl.name} />
-                  ) : (
-                    <div className="ratio ratio-1x1 bg-secondary"></div>
-                  )}
+                  >
+                    {imageUrl ? (
+                      <img src={imageUrl} className="card-img-top" alt={vinyl.name} />
+                    ) : (
+                      <div className="ratio ratio-1x1 bg-secondary"></div>
+                    )}
+                  </a>
                   <div className="card-body align-content-end">
                     <h6 className="card-title mb-1">{vinyl.name}</h6>
                     <div className="text-muted small mb-2">{vinyl.category || "—"}</div>
@@ -128,17 +128,13 @@ export default function VinilosPage() {
             const imageUrl = vinyl.image?.[0]?.url || "";
             return (
               <div key={vinyl.id} className="col-12 col-sm-6 col-md-4">
-                <div className="card bg-dark border-secondary text-light h-100">
+                <div className="card bg-dark border-secondary text-light h-100 card-vinilo-product-main">
                   <a
                     href={`/vinilo/${vinyl.id}`}
-                    className="stretched-link"
                     aria-label={`Ver ${vinyl.name}`}
-                  />
-                  {imageUrl ? (
+                  >
                     <img src={imageUrl} className="card-img-top" alt={vinyl.name} />
-                  ) : (
-                    <div className="ratio ratio-16x9 bg-secondary"></div>
-                  )}
+                  </a>
 
                   <div className="card-img-overlay d-flex flex-column justify-content-end p-2 p-md-3" style={{position: 'absolute',bottom: '60px'}}>
                     <div className="d-flex justify-content-between small" style={{background:'#00000082',padding:'.5rem',borderRadius:'5px'}}>
