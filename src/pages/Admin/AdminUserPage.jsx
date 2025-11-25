@@ -127,6 +127,7 @@ export default function AdminUserPage() {
             </a>
             <a className="nav-link text-white-50" href="/admin"> <i className="bi bi-box-seam me-2"></i>Productos</a>
             <a className="nav-link text-white active" aria-current="page" href="#"> <i className="bi bi-people me-2"></i>Usuarios</a>
+            <a className="nav-link text-white-50" href="/admin/ordenes"><i className="bi bi-clipboard-check me-2"></i>Órdenes</a>
             <hr className="border-secondary" />
             <a className="nav-link text-danger" href="/"><i className="bi bi-box-arrow-right me-2"></i>Cerrar sesión</a>
           </nav>

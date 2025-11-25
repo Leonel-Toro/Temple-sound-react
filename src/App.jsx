@@ -11,6 +11,7 @@ import ViniloPage from "./pages/Vinilos/ViniloPage";
 import PagoPage from "./pages/Pago/PagoPage";
 import AdminPage from "./pages/Admin/AdminPage";
 import AdminUserPage from "./pages/Admin/AdminUserPage";
+import AdminOrderPage from "./pages/Admin/AdminOrderPage";
 
 function getPathFromLocation() {
   let p = window.location.pathname || "/";
@@ -146,9 +147,11 @@ export default function App() {
     pageProps = { id: Number(segs[1]) };
   } else if (isAdmin && segs.length === 1) {
     Page = AdminPage;
-  }else if (segs[0] === "admin" && segs[1] === "usuarios") {
+  } else if (segs[0] === "admin" && segs[1] === "usuarios") {
     Page = AdminUserPage;
-  }else {
+  } else if (segs[0] === "admin" && segs[1] === "ordenes") {
+    Page = AdminOrderPage;
+  } else {
     Page = NotFoundPage;
   }
   

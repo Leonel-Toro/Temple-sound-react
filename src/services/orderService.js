@@ -3,17 +3,18 @@ import { cartService } from "./cartService";
 import { vinylService } from "./vinylService";
 
 export const orderService = {
+  list() {
+    return api.get("/order");
+  },
   create(payload) {
     return api.post("/order", payload);
   },
   addItem(orderId, { vinyl_id, quantity, price_unit }) {
-    return api.post("/order_item", { order_id: orderId, vinyl_id, quantity, price_unit });
+    return api.post("/order_item", { order_id: orderId, vinyl_id, quantity, price_at_purchase: price_unit });
   },
-  get(orderId) {
-    return api.get(`/order/${orderId}`);
-  },
-  async listItems(orderId) {
-    const items = await api.get(`/order_item?order_id=${orderId}`);
+  async getWithItems(orderId) {
+    // Usar el nuevo endpoint que trae la orden con sus items filtrados
+    const items = await api.get(`/order/${orderId}`);
     return Array.isArray(items) ? items : [];
   },
 

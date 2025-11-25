@@ -28,8 +28,8 @@ export default function PagoPage({ id: idProp }) {
         setLoading(true);
         setError("");
 
-        const o = await orderService.get(id);
-        const rawItems = await orderService.listItems(id);
+        // Obtener los items de la orden usando el nuevo endpoint
+        const rawItems = await orderService.getWithItems(id);
 
         // OPTIMIZACIÓN: Obtener vinilos en paralelo usando cache
         const vinylIds = [...new Set(rawItems.map(it => it.vinyl_id))];
@@ -47,7 +47,18 @@ export default function PagoPage({ id: idProp }) {
         }));
 
         if (!alive) return;
-        setOrder(o);
+        
+        // Crear un objeto de orden básico desde los items
+        const orderData = {
+          id: id,
+          status: "pagada",
+          total: detailed.reduce((acc, it) => {
+            const unit = Number(it.price_unit) || 0;
+            return acc + unit * Number(it.quantity || 0);
+          }, 0)
+        };
+        
+        setOrder(orderData);
         setItems(detailed);
       } catch (e) {
         setError(e.message || "No se pudo cargar la orden");
