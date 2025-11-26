@@ -1,0 +1,351 @@
+/* ============================================
+   AUTH FORMS - ESTILOS PERSONALIZADOS
+   ============================================ */
+
+/* Animaciones globales */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Animación de fade-in para los formularios */
+.auth-form {
+  animation: fadeInUp 0.4s ease-out;
+}
+
+/* Ícono decorativo superior */
+.auth-icon-wrapper {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.auth-icon {
+  font-size: 2.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 12px 30px rgba(102, 126, 234, 0.5);
+  }
+}
+
+/* Inputs con efecto focus mejorado */
+.auth-form .form-control:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25);
+}
+
+.auth-form .input-group-text {
+  transition: all 0.3s ease;
+}
+
+.auth-form .form-control:focus ~ .input-group-text,
+.auth-form .form-control:focus + .input-group-text {
+  border-color: #667eea;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+}
+
+/* Animación para campos válidos */
+.auth-form .is-valid {
+  border-color: #28a745 !important;
+  animation: successPulse 0.5s ease-out;
+}
+
+@keyframes successPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+  }
+}
+
+/* Animación para campos inválidos */
+.auth-form .is-invalid {
+  border-color: #dc3545 !important;
+  animation: errorShake 0.5s ease-out;
+}
+
+@keyframes errorShake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+
+/* Labels con mejor estilo */
+.auth-form .form-label {
+  color: #e0e0e0;
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Feedback messages mejorados */
+.auth-form .valid-feedback,
+.auth-form .invalid-feedback {
+  font-size: 0.85rem;
+  margin-top: 0.35rem;
+  display: flex;
+  align-items: center;
+}
+
+/* Botones con efecto hover mejorado */
+.auth-form .btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.auth-form .btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.auth-form .btn:hover::before {
+  width: 300px;
+  height: 300px;
+}
+
+.auth-form .btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.auth-form .btn:active {
+  transform: translateY(0);
+}
+
+/* Spinner personalizado */
+.auth-form .spinner-border {
+  width: 1rem;
+  height: 1rem;
+  border-width: 0.15em;
+}
+
+/* Alert con animación */
+.auth-form .alert {
+  animation: slideInDown 0.3s ease-out;
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Separador decorativo */
+.auth-form .text-muted {
+  position: relative;
+  display: inline-block;
+}
+
+/* Password strength indicator */
+.password-strength {
+  height: 4px;
+  background: #343a40;
+  border-radius: 2px;
+  margin-top: 0.5rem;
+  overflow: hidden;
+}
+
+.password-strength-bar {
+  height: 100%;
+  transition: all 0.3s ease;
+  border-radius: 2px;
+}
+
+.strength-weak {
+  width: 33.33%;
+  background: linear-gradient(90deg, #dc3545, #ff6b6b);
+}
+
+.strength-medium {
+  width: 66.66%;
+  background: linear-gradient(90deg, #ffc107, #ffeb3b);
+}
+
+.strength-strong {
+  width: 100%;
+  background: linear-gradient(90deg, #28a745, #4caf50);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .auth-icon-wrapper {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .auth-icon {
+    font-size: 2rem;
+  }
+  
+  .auth-form .form-label {
+    font-size: 0.9rem;
+  }
+  
+  .auth-form .form-control-lg {
+    font-size: 1rem;
+    padding: 0.5rem 0.75rem;
+  }
+}
+
+/* Modal backdrop mejorado */
+.modal.show {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Input group hover effect */
+.auth-form .input-group:hover .input-group-text {
+  color: #667eea;
+}
+
+/* Textarea personalizada */
+.auth-form textarea.form-control {
+  transition: all 0.3s ease;
+}
+
+.auth-form textarea.form-control:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25);
+}
+
+/* Link hover effect */
+.auth-form a {
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.auth-form a::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: currentColor;
+  transition: width 0.3s ease;
+}
+
+.auth-form a:hover::after {
+  width: 100%;
+}
+
+/* Checkbox personalizado (si se agrega) */
+.auth-form .form-check-input:checked {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+}
+
+/* Loading state para inputs */
+.auth-form .form-control[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Success message animation */
+.auth-success {
+  animation: successBounce 0.6s ease-out;
+}
+
+@keyframes successBounce {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* Error message animation */
+.auth-error {
+  animation: errorShake 0.5s ease-out;
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Card hover effect para modales */
+.modal-content {
+  transition: all 0.3s ease;
+}
+
+.modal-content:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5) !important;
+}

@@ -3,15 +3,19 @@ import React from "react";
 import Header from "./components/layout/Header";
 import Modal from "./components/ui/Modal";
 import Footer from "./components/layout/Footer";
-import PasswordInput from "./components/ui/PasswordInput";
 import VinilosPage from "./pages/Vinilos/VinilosPage";
 import NotFoundPage from "./pages/NotFound/NotFoundPage";
 import NosotrosPage from "./pages/Nosotros/NosotrosPage";
 import ViniloPage from "./pages/Vinilos/ViniloPage";
 import PagoPage from "./pages/Pago/PagoPage";
+import ProfilePage from "./pages/Profile/ProfilePage";
 import AdminPage from "./pages/Admin/AdminPage";
 import AdminUserPage from "./pages/Admin/AdminUserPage";
 import AdminOrderPage from "./pages/Admin/AdminOrderPage";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import LoginForm from "./components/LoginForm";
+import RegisterForm from "./components/RegisterForm";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function getPathFromLocation() {
   let p = window.location.pathname || "/";
@@ -22,12 +26,12 @@ function segments(path) {
   return path.replace(/^\/+/, "").split("/").filter(Boolean);
 }
 
-export default function App() {
+function AppContent() {
+  const { user, logout } = useAuth();
   const [path, setPath] = React.useState(getPathFromLocation());
   const segs = segments(path);
   const [showLogin, setShowLogin] = React.useState(false);
   const [showRegister, setShowRegister] = React.useState(false);
-  const [user, setUser] = React.useState(null);
 
   React.useEffect(() => {
     const onPop = () => setPath(getPathFromLocation());
@@ -45,28 +49,27 @@ export default function App() {
     setShowRegister(false);
     setShowLogin(true);
   };
+  
   const abrirRegistro = () => {
     setShowLogin(false);
     setShowRegister(true);
   };
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const email = formData.get('email');
-    const password = formData.get('password');
-    
-    // Aquí puedes agregar validación real con tu backend
-    // Por ahora, simulamos un login exitoso
-    setUser({
-      email: email,
-      name: email.split('@')[0] // Usamos la parte antes del @ como nombre
-    });
+  const handleLoginSuccess = (userData) => {
     setShowLogin(false);
+    // Redirigir a vinilos para todos los usuarios
+    navigate('/vinilos');
+  };
+
+  const handleRegisterSuccess = (userData) => {
+    setShowRegister(false);
+    // Redirigir a vinilos para todos los usuarios
+    navigate('/vinilos');
   };
 
   const handleLogout = () => {
-    setUser(null);
+    logout();
+    navigate('/');
   };
 
   const Hero = () => (
@@ -139,25 +142,43 @@ export default function App() {
   } else if (path.startsWith("/contacto")) {
     Page = NosotrosPage;
     pageProps = { initialSection: "contacto" };
-  }else if(segs[0] === "vinilo" && segs[1]) {
+  } else if (path.startsWith("/perfil")) {
+    Page = () => (
+      <ProtectedRoute>
+        <ProfilePage />
+      </ProtectedRoute>
+    );
+  } else if(segs[0] === "vinilo" && segs[1]) {
     Page = ViniloPage;
     pageProps = { id: Number(segs[1]) };
   } else if (segs[0] === "pago-exitoso" && segs[1]) {
     Page = PagoPage;
     pageProps = { id: Number(segs[1]) };
   } else if (isAdmin && segs.length === 1) {
-    Page = AdminPage;
+    Page = () => (
+      <ProtectedRoute requiredRole="admin">
+        <AdminPage />
+      </ProtectedRoute>
+    );
   } else if (segs[0] === "admin" && segs[1] === "usuarios") {
-    Page = AdminUserPage;
+    Page = () => (
+      <ProtectedRoute requiredRole="admin">
+        <AdminUserPage />
+      </ProtectedRoute>
+    );
   } else if (segs[0] === "admin" && segs[1] === "ordenes") {
-    Page = AdminOrderPage;
+    Page = () => (
+      <ProtectedRoute requiredRole="admin">
+        <AdminOrderPage />
+      </ProtectedRoute>
+    );
   } else {
     Page = NotFoundPage;
   }
   
   return (
     <div className="d-flex flex-column min-vh-100 bg-dark">
-      {!isAdmin && <Header onOpenLogin={() => setShowLogin(true)} user={user} onLogout={handleLogout} />}
+      {!isAdmin && <Header onOpenLogin={() => setShowLogin(true)} />}
 
       <main className={isAdmin ? "" : "flex-grow-1"}>
         <Page {...pageProps} />
@@ -166,6 +187,8 @@ export default function App() {
       {!isAdmin && <Footer />}
       
       <CartModal />
+      
+      {/* Modal de Login */}
       <Modal
         show={showLogin}
         title="Iniciar sesión"
@@ -173,53 +196,14 @@ export default function App() {
         size="sm"
         dark
       >
-        <form
-          onSubmit={handleLogin}
-          noValidate
-        >
-          <div className="mb-3">
-            <label htmlFor="loginUser" className="form-label">
-              Correo
-            </label>
-            <input
-              id="loginUser"
-              name="email"
-              type="email"
-              className="form-control bg-dark text-white border-secondary"
-              placeholder="correo@dominio.com"
-              required
-              autoComplete="username"
-            />
-          </div>
-
-          <div className="mb-3">
-            <label htmlFor="loginPass" className="form-label">
-              Contraseña
-            </label>
-            <PasswordInput
-              id="loginPass"
-              name="password"
-              className="form-control bg-dark text-white"
-              minLength={4}
-              required
-              autoComplete="current-password"
-            />
-          </div>
-
-          <div className="d-grid gap-2">
-            <button className="btn btn-primary" type="submit">
-              Entrar
-            </button>
-            <button
-              type="button"
-              className="btn btn-outline-light"
-              onClick={abrirRegistro}
-            >
-              Crear cuenta
-            </button>
-          </div>
-        </form>
+        <LoginForm
+          onSuccess={handleLoginSuccess}
+          onSwitchToRegister={abrirRegistro}
+          onClose={() => setShowLogin(false)}
+        />
       </Modal>
+
+      {/* Modal de Registro */}
       <Modal
         show={showRegister}
         title="Registrarse"
@@ -227,79 +211,20 @@ export default function App() {
         size="sm"
         dark
       >
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-          }}
-          noValidate
-        >
-          <div className="mb-3">
-            <label htmlFor="regFullName" className="form-label">
-              Nombre completo
-            </label>
-            <input
-              id="regFullName"
-              type="text"
-              className="form-control bg-dark text-white border-secondary"
-              placeholder="Tu nombre y apellido"
-              required
-            />
-          </div>
-
-          <div className="mb-3">
-            <label htmlFor="regEmail" className="form-label">
-              Correo
-            </label>
-            <input
-              id="regEmail"
-              type="email"
-              className="form-control bg-dark text-white border-secondary"
-              placeholder="correo@dominio.com"
-              required
-              autoComplete="email"
-            />
-          </div>
-
-          <div className="mb-3">
-            <label htmlFor="regPass" className="form-label">
-              Contraseña
-            </label>
-            <PasswordInput
-              id="regPass"
-              className="form-control bg-dark text-white"
-              minLength={4}
-              required
-              autoComplete="new-password"
-            />
-          </div>
-
-          <div className="mb-3">
-            <label htmlFor="regPass2" className="form-label">
-              Confirmar contraseña
-            </label>
-            <PasswordInput
-              id="regPass2"
-              className="form-control bg-dark text-white"
-              minLength={4}
-              required
-              autoComplete="new-password"
-            />
-          </div>
-
-          <div className="d-grid gap-2">
-            <button className="btn btn-primary" type="submit">
-              Crear cuenta
-            </button>
-            <button
-              type="button"
-              className="btn btn-outline-light"
-              onClick={abrirLogin}
-            >
-              Ya tengo cuenta
-            </button>
-          </div>
-        </form>
+        <RegisterForm
+          onSuccess={handleRegisterSuccess}
+          onSwitchToLogin={abrirLogin}
+          onClose={() => setShowRegister(false)}
+        />
       </Modal>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

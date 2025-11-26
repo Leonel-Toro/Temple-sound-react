@@ -1,4 +1,5 @@
 import React from "react";
+import { useAuth } from "../../context/AuthContext";
 import { userService } from "../../services/userService";
 
 const PAGE_SIZE = 40;
@@ -19,6 +20,7 @@ function StatusBadge({ status }) {
 }
 
 export default function AdminUserPage() {
+  const { logout } = useAuth();
   const [rows, setRows] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
@@ -65,19 +67,23 @@ export default function AdminUserPage() {
   async function onCreate(e) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    const first_name = fd.get("first_name") || "";
+    const last_name = fd.get("last_name") || "";
     const payload = {
-      name: fd.get("name") || "",
+      first_name,
+      last_name,
+      name: `${first_name} ${last_name}`.trim(),
       email: fd.get("email") || "",
-      role: fd.get("role") || "cliente",
-      status: fd.get("status") || "activo",
-      // password: fd.get("password") || ""  // si quieres permitir setearlo aquí
+      password: fd.get("password") || "",
+      role: fd.get("role") || "user",
+      status: fd.get("status") || "active",
     };
     try {
       setBusy(true); setFormErr("");
       const created = await userService.create(payload);
       setRows(prev => [created, ...prev]);
-      setShowCreate(false);
       e.currentTarget.reset();
+      setShowCreate(false);
     } catch (err) {
       setFormErr(err.message || "No se pudo crear el usuario");
     } finally {
@@ -89,12 +95,23 @@ export default function AdminUserPage() {
     e.preventDefault();
     if (!editRow) return;
     const fd = new FormData(e.currentTarget);
+    const first_name = fd.get("first_name") || "";
+    const last_name = fd.get("last_name") || "";
     const payload = {
-      name: fd.get("name") || "",
+      first_name,
+      last_name,
+      name: `${first_name} ${last_name}`.trim(),
       email: fd.get("email") || "",
       role: fd.get("role") || "",
       status: fd.get("status") || "",
     };
+    
+    // Solo incluir contraseña si se proporcionó una nueva
+    const password = fd.get("password");
+    if (password && password.trim()) {
+      payload.password = password;
+    }
+    
     try {
       setBusy(true); setFormErr("");
       const updated = await userService.update(editRow.id, payload);
@@ -129,7 +146,15 @@ export default function AdminUserPage() {
             <a className="nav-link text-white active" aria-current="page" href="#"> <i className="bi bi-people me-2"></i>Usuarios</a>
             <a className="nav-link text-white-50" href="/admin/ordenes"><i className="bi bi-clipboard-check me-2"></i>Órdenes</a>
             <hr className="border-secondary" />
-            <a className="nav-link text-danger" href="/"><i className="bi bi-box-arrow-right me-2"></i>Cerrar sesión</a>
+            <button 
+              className="nav-link text-danger bg-transparent border-0 w-100 text-start"
+              onClick={() => {
+                logout();
+                window.location.href = '/';
+              }}
+            >
+              <i className="bi bi-box-arrow-right me-2"></i>Cerrar sesión
+            </button>
           </nav>
         </aside>
 
@@ -232,34 +257,38 @@ export default function AdminUserPage() {
                 <div className="modal-body">
                   {formErr && <div className="alert alert-danger">{formErr}</div>}
                   <div className="row g-3">
-                    <div className="col-12">
-                      <label className="form-label">Nombre</label>
-                      <input name="name" className="form-control bg-dark text-white border-secondary" required />
+                    <div className="col-6">
+                      <label className="form-label">Nombre <span className="text-danger">*</span></label>
+                      <input name="first_name" className="form-control bg-dark text-white border-secondary" required />
+                    </div>
+                    <div className="col-6">
+                      <label className="form-label">Apellido <span className="text-danger">*</span></label>
+                      <input name="last_name" className="form-control bg-dark text-white border-secondary" required />
                     </div>
                     <div className="col-12">
-                      <label className="form-label">Email</label>
+                      <label className="form-label">Email <span className="text-danger">*</span></label>
                       <input name="email" type="email" className="form-control bg-dark text-white border-secondary" required />
                     </div>
+                    <div className="col-12">
+                      <label className="form-label">Contraseña <span className="text-danger">*</span></label>
+                      <input name="password" type="password" className="form-control bg-dark text-white border-secondary" minLength="6" required />
+                      <small className="text-muted">Mínimo 6 caracteres</small>
+                    </div>
                     <div className="col-6">
-                      <label className="form-label">Rol</label>
-                      <select name="role" className="form-select bg-dark text-white border-secondary" defaultValue="cliente">
-                        <option value="admin">admin</option>
-                        <option value="vendedor">vendedor</option>
-                        <option value="cliente">cliente</option>
+                      <label className="form-label">Rol <span className="text-danger">*</span></label>
+                      <select name="role" className="form-select bg-dark text-white border-secondary" defaultValue="user">
+                        <option value="admin">Admin</option>
+                        <option value="user">Usuario</option>
                       </select>
                     </div>
                     <div className="col-6">
-                      <label className="form-label">Estado</label>
-                      <select name="status" className="form-select bg-dark text-white border-secondary" defaultValue="activo">
-                        <option value="activo">activo</option>
-                        <option value="pendiente">pendiente</option>
-                        <option value="suspendido">suspendido</option>
+                      <label className="form-label">Estado <span className="text-danger">*</span></label>
+                      <select name="status" className="form-select bg-dark text-white border-secondary" defaultValue="active">
+                        <option value="active">Activo</option>
+                        <option value="pending">Pendiente</option>
+                        <option value="blocked">Bloqueado</option>
                       </select>
                     </div>
-                    {/* <div className="col-12">
-                      <label className="form-label">Password</label>
-                      <input name="password" type="password" className="form-control bg-dark text-white border-secondary" />
-                    </div> */}
                   </div>
                 </div>
                 <div className="modal-footer">
@@ -286,28 +315,36 @@ export default function AdminUserPage() {
                 <div className="modal-body">
                   {formErr && <div className="alert alert-danger">{formErr}</div>}
                   <div className="row g-3">
-                    <div className="col-12">
-                      <label className="form-label">Nombre</label>
-                      <input name="name" defaultValue={editRow.name} className="form-control bg-dark text-white border-secondary" required />
-                    </div>
-                    <div className="col-12">
-                      <label className="form-label">Email</label>
-                      <input name="email" type="email" defaultValue={editRow.email} className="form-control bg-dark text-white border-secondary" required />
+                    <div className="col-6">
+                      <label className="form-label">Nombre <span className="text-danger">*</span></label>
+                      <input name="first_name" defaultValue={editRow.first_name} className="form-control bg-dark text-white border-secondary" required />
                     </div>
                     <div className="col-6">
-                      <label className="form-label">Rol</label>
-                      <select name="role" className="form-select bg-dark text-white border-secondary" defaultValue={editRow.role || "cliente"}>
-                        <option value="admin">admin</option>
-                        <option value="vendedor">vendedor</option>
-                        <option value="cliente">cliente</option>
+                      <label className="form-label">Apellido <span className="text-danger">*</span></label>
+                      <input name="last_name" defaultValue={editRow.last_name} className="form-control bg-dark text-white border-secondary" required />
+                    </div>
+                    <div className="col-12">
+                      <label className="form-label">Email <span className="text-danger">*</span></label>
+                      <input name="email" type="email" defaultValue={editRow.email} className="form-control bg-dark text-white border-secondary" required />
+                    </div>
+                    <div className="col-12">
+                      <label className="form-label">Nueva Contraseña</label>
+                      <input name="password" type="password" className="form-control bg-dark text-white border-secondary" minLength="6" placeholder="Dejar vacío para no cambiar" />
+                      <small className="text-muted">Dejar vacío si no deseas cambiar la contraseña</small>
+                    </div>
+                    <div className="col-6">
+                      <label className="form-label">Rol <span className="text-danger">*</span></label>
+                      <select name="role" className="form-select bg-dark text-white border-secondary" defaultValue={editRow.role || "user"}>
+                        <option value="admin">Admin</option>
+                        <option value="user">Usuario</option>
                       </select>
                     </div>
                     <div className="col-6">
-                      <label className="form-label">Estado</label>
-                      <select name="status" className="form-select bg-dark text-white border-secondary" defaultValue={editRow.status || "activo"}>
-                        <option value="activo">activo</option>
-                        <option value="pendiente">pendiente</option>
-                        <option value="suspendido">suspendido</option>
+                      <label className="form-label">Estado <span className="text-danger">*</span></label>
+                      <select name="status" className="form-select bg-dark text-white border-secondary" defaultValue={editRow.status || "active"}>
+                        <option value="active">Activo</option>
+                        <option value="pending">Pendiente</option>
+                        <option value="blocked">Bloqueado</option>
                       </select>
                     </div>
                   </div>

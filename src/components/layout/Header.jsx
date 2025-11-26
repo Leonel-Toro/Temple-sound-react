@@ -1,11 +1,19 @@
 import { useCart } from "../../context/CartContext";
+import { useAuth } from "../../context/AuthContext";
 import React from "react";
 
-export default function Header({ onOpenLogin, user, onLogout }) {
+export default function Header({ onOpenLogin }) {
   const { setOpen, items } = useCart();
+  const { user, logout, isAdmin } = useAuth();
   const count = items.reduce((a,b)=>a+(b.quantity||0),0);
   const [openModal, setOpenModal] = React.useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = React.useState(false);
+
+  const handleLogout = () => {
+    setShowProfileDropdown(false);
+    logout();
+    window.location.href = '/';
+  };
 
   // Cerrar dropdown al hacer clic fuera
   React.useEffect(() => {
@@ -68,7 +76,9 @@ export default function Header({ onOpenLogin, user, onLogout }) {
             </li>
             {!user ? (
               <li className="nav-item">
-                <button className="btn btn-outline-light ms-lg-1" onClick={onOpenLogin}>Iniciar Sesión</button>
+                <button className="btn btn-outline-light ms-lg-1" onClick={onOpenLogin}>
+                  <i className="bi bi-person"></i> Iniciar Sesión
+                </button>
               </li>
             ) : (
               <li className="nav-item dropdown">
@@ -77,19 +87,47 @@ export default function Header({ onOpenLogin, user, onLogout }) {
                   onClick={() => setShowProfileDropdown(!showProfileDropdown)}
                   aria-expanded={showProfileDropdown}
                 >
-                  <i className="bi bi-person-circle"></i> Perfil
+                  <i className="bi bi-person-circle"></i> {user.first_name || user.name || 'Usuario'}
                 </button>
                 {showProfileDropdown && (
-                  <ul className="dropdown-menu dropdown-menu-end show" style={{ position: 'absolute', right: 0 }}>
+                  <ul className="dropdown-menu dropdown-menu-end show bg-dark" style={{ position: 'absolute', right: 0 }}>
+                    <li className="dropdown-header text-white">
+                      <div className="small text-muted">Conectado como:</div>
+                      <div>{user.email}</div>
+                      <div>
+                        <span className={`badge ${isAdmin() ? 'bg-danger' : 'bg-info'} mt-1`}>
+                          {user.role === 'admin' ? 'Admin' : 'Usuario'}
+                        </span>
+                      </div>
+                    </li>
+                    <li><hr className="dropdown-divider border-secondary" /></li>
+                    <li>
+                      <a 
+                        className="dropdown-item text-white" 
+                        href="/perfil"
+                        onClick={() => setShowProfileDropdown(false)}
+                      >
+                        <i className="bi bi-person me-2"></i> Mi Perfil
+                      </a>
+                    </li>
+                    {isAdmin() && (
+                      <li>
+                        <a 
+                          className="dropdown-item text-white" 
+                          href="/admin"
+                          onClick={() => setShowProfileDropdown(false)}
+                        >
+                          <i className="bi bi-gear me-2"></i> Panel Admin
+                        </a>
+                      </li>
+                    )}
+                    <li><hr className="dropdown-divider border-secondary" /></li>
                     <li>
                       <button 
-                        className="dropdown-item" 
-                        onClick={() => {
-                          setShowProfileDropdown(false);
-                          onLogout();
-                        }}
+                        className="dropdown-item text-danger" 
+                        onClick={handleLogout}
                       >
-                        <i className="bi bi-box-arrow-right"></i> Cerrar Sesión
+                        <i className="bi bi-box-arrow-right me-2"></i> Cerrar Sesión
                       </button>
                     </li>
                   </ul>

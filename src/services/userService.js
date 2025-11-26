@@ -5,6 +5,45 @@ import { CacheService } from "./cacheService";
 const userCache = new CacheService();
 
 export const userService = {
+  /**
+   * Autenticar usuario (login)
+   * @param {string} email 
+   * @param {string} password 
+   * @returns {Promise<Object>} Usuario autenticado
+   */
+  login: async (email, password) => {
+    try {
+      // Si tu API tiene un endpoint específico de login, úsalo aquí
+      // Por ejemplo: return apiUsers.post("/user/login", { email, password });
+      
+      // Si no, buscar el usuario en la lista
+      const users = await apiUsers.get("/user");
+      const user = users.find(u => 
+        u.email.toLowerCase() === email.toLowerCase() && 
+        u.password === password
+      );
+      
+      if (!user) {
+        throw new Error("Credenciales inválidas");
+      }
+      
+      return user;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  /**
+   * Registrar nuevo usuario
+   * @param {Object} userData - Datos del usuario
+   * @returns {Promise<Object>} Usuario creado
+   */
+  register: async (userData) => {
+    const result = await apiUsers.post("/user", userData);
+    userCache.invalidate("users:list");
+    return result;
+  },
+
   list: async () => {
     return userCache.getOrLoad("users:list", () => apiUsers.get("/user"));
   },

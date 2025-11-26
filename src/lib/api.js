@@ -1,5 +1,6 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const USER_URL = import.meta.env.VITE_API_USER_URL || BASE_URL;
+const AUTH_URL = import.meta.env.VITE_API_AUTH_URL || USER_URL;
 
 function isFormData(body) {
   return typeof FormData !== "undefined" && body instanceof FormData;
@@ -42,3 +43,4 @@ function createClient(base) {
 
 export const api = createClient(BASE_URL);      // productos / carrito / órdenes
 export const apiUsers = createClient(USER_URL); // usuarios
+export const apiAuth = createClient(AUTH_URL);  // autenticación

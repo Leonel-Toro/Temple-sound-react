@@ -1,4 +1,5 @@
 import React from "react";
+import { useAuth } from "../../context/AuthContext";
 import { vinylService } from "../../services/vinylService";
 import { vinylCache } from "../../services/cacheService";
 
@@ -16,6 +17,7 @@ const fmtDate = (iso) => {
 const PAGE_SIZE = 40;
 
 export default function AdminPage() {
+  const { logout } = useAuth();
   const [rows, setRows] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
@@ -258,7 +260,15 @@ export default function AdminPage() {
             <a className="nav-link text-white-50" href="/admin/usuarios"><i className="bi bi-people me-2"></i>Usuarios</a>
             <a className="nav-link text-white-50" href="/admin/ordenes"><i className="bi bi-clipboard-check me-2"></i>Órdenes</a>
             <hr className="border-secondary" />
-            <a className="nav-link text-danger" href="/"><i className="bi bi-box-arrow-right me-2"></i>Cerrar sesión</a>
+            <button 
+              className="nav-link text-danger bg-transparent border-0 w-100 text-start"
+              onClick={() => {
+                logout();
+                window.location.href = '/';
+              }}
+            >
+              <i className="bi bi-box-arrow-right me-2"></i>Cerrar sesión
+            </button>
           </nav>
         </aside>
 
