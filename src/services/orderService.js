@@ -10,7 +10,23 @@ export const orderService = {
     return api.post("/order", payload);
   },
   addItem(orderId, { vinyl_id, quantity, price_unit }) {
-    return api.post("/order_item", { order_id: orderId, vinyl_id, quantity, price_at_purchase: price_unit });
+    return api.post("/order_item", { 
+      order_id: orderId, 
+      vinyl_id, 
+      quantity, 
+      price_at_purchase: price_unit 
+    });
+  },
+  
+  addItems(orderId, items) {
+    return api.post("/order_items", {
+      order_id: orderId,
+      items: items.map(it => ({
+        vinyl_id: it.vinyl_id,
+        quantity: it.quantity,
+        price_at_purchase: it.price_unit
+      }))
+    });
   },
   async getWithItems(orderId) {
     // Usar el nuevo endpoint que trae la orden con sus items filtrados
@@ -18,8 +34,13 @@ export const orderService = {
     return Array.isArray(items) ? items : [];
   },
 
-  async createFromCartPaid(cart, opts = { clearAfter: true }) {
+  async createFromCartPaid(cart, opts = { clearAfter: true, userId: null }) {
     if (!cart?.id) throw new Error("Carrito inválido");
+    
+    // Validar que se proporcione un userId
+    if (!opts.userId) {
+      throw new Error("Debes iniciar sesión para completar la compra");
+    }
 
     // IMPORTANTE: Forzar recarga sin cache para obtener los items actuales del servidor
     const items = await cartService.listItems(cart.id, true);
@@ -43,21 +64,13 @@ export const orderService = {
     const total = detailed.reduce((acc, it) => acc + (it.price_unit * (it.quantity || 0)), 0);
 
     const order = await this.create({
-      user_id: 2,
+      user_id: opts.userId,
       status: "pagada",
       total,
     });
 
-    // Usar Promise.all para crear todos los items en paralelo
-    await Promise.all(
-      detailed.map(it => 
-        this.addItem(order.id, {
-          vinyl_id: it.vinyl_id,
-          quantity: it.quantity,
-          price_unit: it.price_unit,
-        })
-      )
-    );
+    // Usar el nuevo endpoint que acepta array de items
+    await this.addItems(order.id, detailed);
 
     if (opts.clearAfter) {
       await cartService.clear(cart.id);

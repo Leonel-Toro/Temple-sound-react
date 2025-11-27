@@ -8,7 +8,7 @@ import { apiAuth } from '../lib/api';
  * Componente para editar información personal del usuario
  */
 export default function EditProfileForm({ onSuccess, onCancel }) {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   
   const [formData, setFormData] = useState({
     first_name: user.first_name || '',
@@ -155,10 +155,19 @@ export default function EditProfileForm({ onSuccess, onCancel }) {
       // Actualizar usuario
       const updatedUser = await userService.update(user.id, updateData);
       
+      // Actualizar el contexto de autenticación con los nuevos datos
+      updateUser(updatedUser);
+      
       // Actualizar sessionStorage con los nuevos datos
       sessionStorage.setItem('userName', updatedUser.name);
       sessionStorage.setItem('userFirstName', updatedUser.first_name);
       sessionStorage.setItem('userLastName', updatedUser.last_name);
+      if (updatedUser.phone) {
+        sessionStorage.setItem('userPhone', updatedUser.phone);
+      }
+      if (updatedUser.shipping_address) {
+        sessionStorage.setItem('userShippingAddress', updatedUser.shipping_address);
+      }
       
       if (onSuccess) {
         onSuccess(updatedUser);
@@ -301,19 +310,20 @@ export default function EditProfileForm({ onSuccess, onCancel }) {
         <div className="mb-3">
           <label htmlFor="editAddress" className="form-label fw-semibold mb-2">
             <i className="bi bi-geo-alt me-2"></i>
-            Dirección de Envío
+            Dirección de Envío <span className="text-danger">*</span>
           </label>
           <textarea
             id="editAddress"
             name="shipping_address"
             className="form-control form-control-lg bg-dark text-white border-secondary"
             style={{ transition: 'all 0.3s ease', resize: 'none' }}
-            placeholder="Calle, número, ciudad..."
+            placeholder="Calle Los Aromos 123, Depto 45, Ciudad, Región"
             rows="3"
             value={formData.shipping_address}
             onChange={handleChange}
             onBlur={handleBlur}
             disabled={isSubmitting}
+            required
           />
         </div>
       </div>

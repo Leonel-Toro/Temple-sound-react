@@ -9,6 +9,8 @@ const STORAGE_KEYS = {
   USER_NAME: 'userName',
   USER_FIRST_NAME: 'userFirstName',
   USER_LAST_NAME: 'userLastName',
+  USER_PHONE: 'userPhone',
+  USER_SHIPPING_ADDRESS: 'userShippingAddress',
 };
 
 /**
@@ -86,6 +88,12 @@ const saveUserToSession = (userData) => {
     if (userData.last_name) {
       sessionStorage.setItem(STORAGE_KEYS.USER_LAST_NAME, userData.last_name);
     }
+    if (userData.phone) {
+      sessionStorage.setItem(STORAGE_KEYS.USER_PHONE, userData.phone);
+    }
+    if (userData.shipping_address) {
+      sessionStorage.setItem(STORAGE_KEYS.USER_SHIPPING_ADDRESS, userData.shipping_address);
+    }
   } catch (error) {
     console.error('Error al guardar datos en sessionStorage:', error);
     throw new Error('No se pudieron guardar los datos de sesión');
@@ -111,6 +119,8 @@ const getUserFromSession = () => {
       name: sessionStorage.getItem(STORAGE_KEYS.USER_NAME),
       first_name: sessionStorage.getItem(STORAGE_KEYS.USER_FIRST_NAME),
       last_name: sessionStorage.getItem(STORAGE_KEYS.USER_LAST_NAME),
+      phone: sessionStorage.getItem(STORAGE_KEYS.USER_PHONE),
+      shipping_address: sessionStorage.getItem(STORAGE_KEYS.USER_SHIPPING_ADDRESS),
     };
   } catch (error) {
     console.error('Error al leer datos de sessionStorage:', error);

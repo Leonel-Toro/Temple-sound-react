@@ -1,6 +1,8 @@
 import React from "react";
 import { useCart } from "../context/CartContext";
+import { useAuth } from "../context/AuthContext";
 import { orderService } from "../services/orderService";
+import { authService } from "../services/authService";
 
 export default function CartModal() {
   const {
@@ -11,15 +13,26 @@ export default function CartModal() {
     totalCLP, priceCLP
   } = useCart();
 
+  const { user, updateUser } = useAuth(); // Obtener el usuario autenticado
+
   // ⬅️ Estados que usas en handlePay
   const [payLoading, setPayLoading] = React.useState(false);
   const [payError, setPayError] = React.useState("");
 
+  // Recargar datos del usuario cuando se abre el modal
   React.useEffect(() => {
-    if (open) document.body.classList.add("modal-open");
-    else document.body.classList.remove("modal-open");
+    if (open) {
+      document.body.classList.add("modal-open");
+      // Obtener datos frescos del usuario desde sessionStorage
+      const currentUser = authService.getCurrentUser();
+      if (currentUser) {
+        updateUser(currentUser);
+      }
+    } else {
+      document.body.classList.remove("modal-open");
+    }
     return () => document.body.classList.remove("modal-open");
-  }, [open]);
+  }, [open, updateUser]);
 
   if (!open) return null;
 
@@ -28,8 +41,28 @@ export default function CartModal() {
       setPayError("");
       setPayLoading(true);
 
+      // Verificar que el usuario esté autenticado
+      if (!user || !user.id) {
+        setPayError("Debes iniciar sesión para realizar una compra");
+        return;
+      }
+
+      // DEBUG: Mostrar datos del usuario
+      console.log("Usuario actual:", user);
+      console.log("Teléfono:", user.phone);
+      console.log("Dirección:", user.shipping_address);
+
+      // Validar que el usuario tenga datos de envío completos
+      if (!user.phone || !user.shipping_address) {
+        setPayError("Debes completar tu información de envío (teléfono y dirección) en tu perfil antes de comprar");
+        return;
+      }
+
       // crea orden "pagada" (sin pasarela) y vacía el carrito
-      const order = await orderService.createFromCartPaid(cart, { clearAfter: true });
+      const order = await orderService.createFromCartPaid(cart, { 
+        clearAfter: true,
+        userId: user.id
+      });
 
       setOpen(false);
       window.location.href = `/pago-exitoso/${order.id}`;
@@ -89,19 +122,30 @@ export default function CartModal() {
               )}
             </div>
 
-            <div className="modal-footer d-flex justify-content-between">
-              <button className="btn btn-outline-secondary" onClick={clear} disabled={items.length === 0 || payLoading}>
-                Vaciar
-              </button>
-              <div className="d-flex align-items-center gap-3">
-                <div className="fw-bold">Total: {priceCLP(totalCLP())}</div>
-                <button
-                  className="btn btn-primary"
-                  disabled={items.length === 0 || payLoading}
-                  onClick={handlePay}
-                >
-                  {payLoading ? "Procesando…" : "Ir a pagar"}
+            <div className="modal-footer d-flex flex-column">
+              {/* Mensaje de advertencia si faltan datos */}
+              {user && (!user.phone || !user.shipping_address) && (
+                <div className="alert alert-warning w-100 mb-2 py-2 small">
+                  <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                  Completa tu información de envío (teléfono y dirección) en tu perfil para poder comprar.
+                </div>
+              )}
+              
+              <div className="d-flex justify-content-between w-100">
+                <button className="btn btn-outline-secondary" onClick={clear} disabled={items.length === 0 || payLoading}>
+                  Vaciar
                 </button>
+                <div className="d-flex align-items-center gap-3">
+                  <div className="fw-bold">Total: {priceCLP(totalCLP())}</div>
+                  <button
+                    className="btn btn-primary"
+                    disabled={items.length === 0 || payLoading || !user || !user.phone || !user.shipping_address}
+                    onClick={handlePay}
+                    title={!user ? "Debes iniciar sesión para comprar" : (!user.phone || !user.shipping_address) ? "Completa tu información de envío" : ""}
+                  >
+                    {payLoading ? "Procesando…" : "Ir a pagar"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

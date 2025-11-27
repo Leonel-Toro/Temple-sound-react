@@ -84,26 +84,25 @@ export function CartProvider({ children }) {
     const c = await ensureCartInitialized();
     
     try {
-      // Realizar la operación en el servidor primero
-      await cartService.addOrUpdate(c.id, vinyl, qty, items);
+      // NO pasar items locales para forzar que obtenga datos frescos del servidor
+      const result = await cartService.addOrUpdate(c.id, vinyl, qty, null);
       
-      // Actualización optimista después de confirmar
-      const existing = items.find(it => it.vinyl_id === vinyl.id);
-      if (existing) {
-        setItems(prev => prev.map(it => 
-          it.vinyl_id === vinyl.id 
-            ? { ...it, quantity: it.quantity + qty }
-            : it
-        ));
-      } else {
-        const newItem = {
-          vinyl_id: vinyl.id,
-          quantity: qty,
-          vinyl: vinyl,
-          cart_id: c.id
-        };
-        setItems(prev => [...prev, newItem]);
-      }
+      // Actualización optimista usando el resultado del servidor
+      setItems(prev => {
+        const existing = prev.find(it => it.vinyl_id === vinyl.id);
+        
+        if (existing) {
+          // Si existe, actualizar con los datos del servidor
+          return prev.map(it => 
+            it.vinyl_id === vinyl.id 
+              ? { ...it, ...result, vinyl: vinyl }
+              : it
+          );
+        } else {
+          // Si no existe, agregar el item con los datos del servidor
+          return [...prev, { ...result, vinyl: vinyl }];
+        }
+      });
       
       // Invalidar cache para la próxima recarga
       cartService.invalidateCache(c.id);
@@ -124,11 +123,12 @@ export function CartProvider({ children }) {
     }
     
     try {
-      await cartService.addOrUpdate(c.id, vinyl, +1, items);
+      // Pasar null para obtener datos frescos del servidor
+      const result = await cartService.addOrUpdate(c.id, vinyl, +1, null);
       
       setItems(prev => prev.map(it => 
         it.id === item.id || it.vinyl_id === item.vinyl_id
-          ? { ...it, quantity: it.quantity + 1 }
+          ? { ...it, ...result, vinyl: vinyl }
           : it
       ));
       
@@ -146,14 +146,15 @@ export function CartProvider({ children }) {
     const newQty = item.quantity - 1;
     
     try {
-      await cartService.addOrUpdate(c.id, vinyl, -1, items);
+      // Pasar null para obtener datos frescos del servidor
+      const result = await cartService.addOrUpdate(c.id, vinyl, -1, null);
       
-      if (newQty <= 0) {
+      if (newQty <= 0 || result._removed) {
         setItems(prev => prev.filter(it => it.id !== item.id && it.vinyl_id !== item.vinyl_id));
       } else {
         setItems(prev => prev.map(it => 
           it.id === item.id || it.vinyl_id === item.vinyl_id
-            ? { ...it, quantity: newQty }
+            ? { ...it, ...result, vinyl: vinyl }
             : it
         ));
       }

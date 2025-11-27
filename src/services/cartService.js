@@ -1,20 +1,22 @@
 import { api } from "../lib/api";
 import { cartCache } from "./cacheService";
 
-const GUEST_USER_ID = 2;
-
 export const cartService = {
-  async ensureCart() {
-    const cacheKey = `cart:user:${GUEST_USER_ID}`;
+  async ensureCart(userId = null) {
+    // Si no hay userId, crear carrito temporal sin usuario específico
+    const cacheKey = userId ? `cart:user:${userId}` : 'cart:guest';
     const cached = cartCache.get(cacheKey);
     if (cached) return cached;
 
-    const carts = await api.get(`/cart?user_id=${GUEST_USER_ID}`);
+    const queryParam = userId ? `?user_id=${userId}` : '';
+    const carts = await api.get(`/cart${queryParam}`);
     let cart;
     if (Array.isArray(carts) && carts.length > 0) {
       cart = carts[0];
     } else {
-      cart = await api.post("/cart", { user_id: GUEST_USER_ID });
+      // Crear carrito con o sin user_id
+      const cartData = userId ? { user_id: userId } : {};
+      cart = await api.post("/cart", cartData);
     }
     
     cartCache.set(cacheKey, cart);
