@@ -47,7 +47,7 @@ export default function AdminOrderPage() {
     try {
       setLoading(true); 
       setError("");
-      const data = await orderService.list();
+      const data = await orderService.listWithUsers();
       // Ordenar por fecha de creación (más reciente primero)
       const sorted = Array.isArray(data) 
         ? data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
@@ -63,9 +63,12 @@ export default function AdminOrderPage() {
   async function viewOrderDetails(orderId) {
     try {
       setLoadingItems(true);
-      const items = await orderService.getWithItems(orderId);
+      const { order, user, items } = await orderService.getOrderWithUser(orderId);
       setOrderItems(items);
-      setSelectedOrder(rows.find(o => o.id === orderId));
+      setSelectedOrder({
+        ...order,
+        user: user
+      });
     } catch (e) {
       alert("Error al cargar los detalles de la orden: " + e.message);
     } finally {
@@ -78,6 +81,22 @@ export default function AdminOrderPage() {
     setOrderItems([]);
   }
 
+  async function handleCancelOrder(orderId) {
+    const reason = prompt("Ingrese el motivo de la cancelación (ej: Sin stock, Error en pedido):");
+    if (!reason) return;
+    
+    if (!confirm(`¿ Está seguro de que desea cancelar la orden #${orderId}?\nMotivo: ${reason}`)) return;
+    
+    try {
+      await orderService.cancelOrder(orderId, reason);
+      alert("¡Orden cancelada exitosamente!");
+      closeDetails();
+      refresh();
+    } catch (e) {
+      alert("Error al cancelar la orden: " + e.message);
+    }
+  }
+
   // Filtro + paginación
   const filtered = React.useMemo(() => {
     const t = q.trim().toLowerCase();
@@ -85,6 +104,8 @@ export default function AdminOrderPage() {
       !t ||
       String(o.id).includes(t) ||
       String(o.user_id).includes(t) ||
+      (o.user?.name || "").toLowerCase().includes(t) ||
+      (o.user?.email || "").toLowerCase().includes(t) ||
       (o.status || "").toLowerCase().includes(t) ||
       fmtCLP(o.total).toLowerCase().includes(t)
     );
@@ -99,8 +120,9 @@ export default function AdminOrderPage() {
     const totalRevenue = rows.reduce((acc, o) => acc + Number(o.total || 0), 0);
     const pagadas = rows.filter(o => (o.status || "").toLowerCase() === "pagada").length;
     const pendientes = rows.filter(o => (o.status || "").toLowerCase() === "pendiente").length;
+    const canceladas = rows.filter(o => (o.status || "").toLowerCase() === "cancelada").length;
     
-    return { total, totalRevenue, pagadas, pendientes };
+    return { total, totalRevenue, pagadas, pendientes, canceladas };
   }, [rows]);
 
   return (
@@ -152,6 +174,14 @@ export default function AdminOrderPage() {
             <div className="card-body">
               <h6 className="card-subtitle mb-2 text-white-50">Órdenes Pagadas</h6>
               <h3 className="card-title mb-0">{stats.pagadas}</h3>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-3">
+          <div className="card bg-danger text-white h-100">
+            <div className="card-body">
+              <h6 className="card-subtitle mb-2 text-white-50">Órdenes Canceladas</h6>
+              <h3 className="card-title mb-0">{stats.canceladas}</h3>
             </div>
           </div>
         </div>
@@ -216,7 +246,7 @@ export default function AdminOrderPage() {
               <thead>
                 <tr>
                   <th>ID</th>
-                  <th>Usuario ID</th>
+                  <th>Usuario</th>
                   <th>Fecha</th>
                   <th>Estado</th>
                   <th className="text-end">Total</th>
@@ -226,7 +256,7 @@ export default function AdminOrderPage() {
               <tbody>
                 {pageRows.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="text-center py-4 text-muted">
+                    <td colSpan="6" className="text-center py-4 text-white">
                       No se encontraron órdenes
                     </td>
                   </tr>
@@ -236,7 +266,14 @@ export default function AdminOrderPage() {
                       <td>#{order.id}</td>
                       <td>
                         <i className="bi bi-person me-1"></i>
-                        {order.user_id}
+                        {order.user ? (
+                          <>
+                            <div>{order.user.name}</div>
+                            <small className="text-white">{order.user.email}</small>
+                          </>
+                        ) : (
+                          <span className="text-white">Usuario #{order.user_id}</span>
+                        )}
                       </td>
                       <td>{fmtDate(order.created_at)}</td>
                       <td>
@@ -290,7 +327,7 @@ export default function AdminOrderPage() {
             </nav>
           )}
 
-          <div className="text-muted text-center mt-2">
+          <div className="text-white text-center mt-2">
             Mostrando {pageRows.length} de {filtered.length} órdenes
             {q && ` (filtradas de ${rows.length} totales)`}
           </div>
@@ -322,30 +359,85 @@ export default function AdminOrderPage() {
                 ></button>
               </div>
               <div className="modal-body">
-                {/* Información de la orden */}
-                <div className="row mb-4">
-                  <div className="col-md-6">
-                    <p className="mb-2">
-                      <strong>Usuario ID:</strong> {selectedOrder.user_id}
-                    </p>
-                    <p className="mb-2">
-                      <strong>Fecha:</strong> {fmtDate(selectedOrder.created_at)}
-                    </p>
+                {/* Información del cliente */}
+                <div className="card bg-secondary mb-4">
+                  <div className="card-header">
+                    <h6 className="mb-0">
+                      <i className="bi bi-person-circle me-2"></i>
+                      Información del Cliente
+                    </h6>
                   </div>
-                  <div className="col-md-6 text-md-end">
-                    <p className="mb-2">
-                      <strong>Estado:</strong> <StatusBadge status={selectedOrder.status} />
-                    </p>
-                    <p className="mb-2">
-                      <strong>Total:</strong> <span className="fs-4 text-success">{fmtCLP(selectedOrder.total)}</span>
-                    </p>
+                  <div className="card-body">
+                    {selectedOrder.user ? (
+                      <div className="row">
+                        <div className="col-md-6">
+                          <p className="mb-2">
+                            <strong><i className="bi bi-person me-2"></i>Nombre:</strong> {selectedOrder.user.name}
+                          </p>
+                          <p className="mb-2">
+                            <strong><i className="bi bi-envelope me-2"></i>Email:</strong> {selectedOrder.user.email}
+                          </p>
+                        </div>
+                        <div className="col-md-6">
+                          {selectedOrder.user.phone && (
+                            <p className="mb-2">
+                              <strong><i className="bi bi-telephone me-2"></i>Teléfono:</strong> {selectedOrder.user.phone}
+                            </p>
+                          )}
+                          {selectedOrder.user.shipping_address && (
+                            <p className="mb-2">
+                              <strong><i className="bi bi-geo-alt me-2"></i>Dirección:</strong> {selectedOrder.user.shipping_address}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-white mb-0">No se encontró información del usuario</p>
+                    )}
                   </div>
                 </div>
 
-                <hr className="border-secondary" />
+                {/* Información de la orden */}
+                <div className="card bg-secondary mb-4">
+                  <div className="card-header">
+                    <h6 className="mb-0">
+                      <i className="bi bi-receipt me-2"></i>
+                      Información de la Orden
+                    </h6>
+                  </div>
+                  <div className="card-body">
+                    <div className="row">
+                      <div className="col-md-6">
+                        <p className="mb-2">
+                          <strong>Orden ID:</strong> #{selectedOrder.id}
+                        </p>
+                        <p className="mb-2">
+                          <strong>Fecha:</strong> {fmtDate(selectedOrder.created_at)}
+                        </p>
+                      </div>
+                      <div className="col-md-6 text-md-end">
+                        <p className="mb-2">
+                          <strong>Estado:</strong> <StatusBadge status={selectedOrder.status} />
+                        </p>
+                        <p className="mb-2">
+                          <strong>Total:</strong> <span className="fs-4 text-white">{fmtCLP(selectedOrder.total)}</span>
+                        </p>
+                      </div>
+                    </div>
+                    {selectedOrder.status?.toLowerCase() === "cancelada" && selectedOrder.cancellation_reason && (
+                      <div className="mt-3 mb-0">
+                        <strong><i className="bi bi-exclamation-triangle me-2"></i>Motivo de cancelación:</strong>
+                        <p className="text-danger mb-0 mt-1">{selectedOrder.cancellation_reason}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
                 {/* Items de la orden */}
-                <h6 className="mb-3">Items de la Orden</h6>
+                <h6 className="mb-3">
+                  <i className="bi bi-box-seam me-2"></i>
+                  Productos de la Orden
+                </h6>
                 {loadingItems ? (
                   <div className="text-center py-4">
                     <div className="spinner-border text-primary" role="status">
@@ -373,7 +465,7 @@ export default function AdminOrderPage() {
                             <td>
                               {item.vinyl_name || `Vinilo #${item.vinyl_id}`}
                               {item.vinyl_artist && (
-                                <div className="text-muted small">
+                                <div className="text-white small">
                                   <i className="bi bi-person me-1"></i>
                                   {item.vinyl_artist}
                                 </div>
@@ -398,6 +490,16 @@ export default function AdminOrderPage() {
                 )}
               </div>
               <div className="modal-footer border-secondary">
+                {selectedOrder.status?.toLowerCase() !== "cancelada" && (
+                  <button 
+                    type="button" 
+                    className="btn btn-danger me-auto" 
+                    onClick={() => handleCancelOrder(selectedOrder.id)}
+                  >
+                    <i className="bi bi-x-circle me-1"></i>
+                    Anular Orden
+                  </button>
+                )}
                 <button 
                   type="button" 
                   className="btn btn-secondary" 

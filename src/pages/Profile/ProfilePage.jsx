@@ -166,25 +166,6 @@ export default function ProfilePage() {
                     </div>
                   </div>
 
-                  {/* Privilegios según rol */}
-                  {isAdmin() && (
-                    <div className="alert mb-4 border-0" style={{
-                      background: 'linear-gradient(135deg, rgba(220, 53, 69, 0.1) 0%, rgba(220, 53, 69, 0.05) 100%)',
-                      borderLeft: '4px solid #dc3545'
-                    }}>
-                      <h6 className="alert-heading text-danger">
-                        <i className="bi bi-shield-check me-2"></i>
-                        Privilegios de Administrador
-                      </h6>
-                      <ul className="mb-0">
-                        <li>Acceso al panel de administración</li>
-                        <li>Gestión de usuarios</li>
-                        <li>Gestión de órdenes</li>
-                        <li>Gestión de productos</li>
-                      </ul>
-                    </div>
-                  )}
-
                   {/* Botones de Acción */}
                   <div className="d-grid gap-2 d-md-flex justify-content-md-between mt-4">
                     <button 

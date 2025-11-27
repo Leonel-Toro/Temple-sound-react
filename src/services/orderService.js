@@ -1,10 +1,21 @@
 import { api } from "../lib/api";
 import { cartService } from "./cartService";
 import { vinylService } from "./vinylService";
+import { userService } from "./userService";
 
 export const orderService = {
   list() {
     return api.get("/order");
+  },
+  async listWithUsers() {
+    const orders = await api.get("/order");
+    const users = await userService.list();
+    const userMap = new Map(users.map(u => [u.id, u]));
+    
+    return orders.map(order => ({
+      ...order,
+      user: userMap.get(order.user_id) || null
+    }));
   },
   create(payload) {
     return api.post("/order", payload);
@@ -32,6 +43,31 @@ export const orderService = {
     // Usar el nuevo endpoint que trae la orden con sus items filtrados
     const items = await api.get(`/order/${orderId}`);
     return Array.isArray(items) ? items : [];
+  },
+  
+  async getOrderWithUser(orderId) {
+    const [items, orders] = await Promise.all([
+      api.get(`/order/${orderId}`),
+      api.get("/order")
+    ]);
+    
+    const order = orders.find(o => o.id === orderId);
+    if (!order) throw new Error("Orden no encontrada");
+    
+    const user = await userService.get(order.user_id).catch(() => null);
+    
+    return {
+      order,
+      user,
+      items: Array.isArray(items) ? items : []
+    };
+  },
+  
+  async cancelOrder(orderId, reason = "Cancelada por administrador") {
+    return api.patch(`/order/${orderId}`, { 
+      status: "cancelada",
+      cancellation_reason: reason
+    });
   },
 
   async createFromCartPaid(cart, opts = { clearAfter: true, userId: null }) {
